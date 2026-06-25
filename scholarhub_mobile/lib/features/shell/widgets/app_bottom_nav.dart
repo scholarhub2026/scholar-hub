@@ -70,7 +70,10 @@ class AppBottomNav extends StatelessWidget {
               ),
               child: Row(
                 children: List.generate(destinations.length, (i) {
+                  // The selected tab gets more width so its icon + label have
+                  // room to breathe; unselected icon-only tabs stay compact.
                   return Expanded(
+                    flex: i == currentIndex ? 2 : 1,
                     child: _NavItem(
                       dest: destinations[i],
                       selected: i == currentIndex,
@@ -106,7 +109,7 @@ class _NavItem extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 280),
         curve: Curves.easeOutCubic,
-        padding: EdgeInsets.symmetric(vertical: 11.h),
+        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 11.h),
         margin: EdgeInsets.symmetric(horizontal: 3.w),
         decoration: BoxDecoration(
           gradient: selected ? AppColors.brandGradient : null,
@@ -121,24 +124,26 @@ class _NavItem extends StatelessWidget {
                 ]
               : null,
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            AnimatedScale(
-              scale: selected ? 1.0 : 0.92,
-              duration: const Duration(milliseconds: 280),
-              curve: Curves.easeOutBack,
-              child: Icon(
-                selected ? dest.activeIcon : dest.icon,
-                size: 22.sp,
-                color: selected ? Colors.white : AppColors.textMuted,
+        // FittedBox(scaleDown) guarantees the icon+label group can never
+        // overflow the item's width — a longer selected label (e.g. "Bookings")
+        // is uniformly scaled down to fit instead of clipping or overflowing.
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AnimatedScale(
+                scale: selected ? 1.0 : 0.92,
+                duration: const Duration(milliseconds: 280),
+                curve: Curves.easeOutBack,
+                child: Icon(
+                  selected ? dest.activeIcon : dest.icon,
+                  size: 22.sp,
+                  color: selected ? Colors.white : AppColors.textMuted,
+                ),
               ),
-            ),
-            // Reveal the label only for the selected item. Flexible (loose
-            // fit) keeps short labels centred with the icon, and lets a longer
-            // label (e.g. "Bookings") clip/ellipsize instead of overflowing.
-            Flexible(
-              child: AnimatedSize(
+              // Reveal the label only for the selected item.
+              AnimatedSize(
                 duration: const Duration(milliseconds: 260),
                 curve: Curves.easeOut,
                 child: selected
@@ -148,7 +153,6 @@ class _NavItem extends StatelessWidget {
                           dest.label,
                           maxLines: 1,
                           softWrap: false,
-                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 12.5.sp,
@@ -158,8 +162,8 @@ class _NavItem extends StatelessWidget {
                       )
                     : const SizedBox.shrink(),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
