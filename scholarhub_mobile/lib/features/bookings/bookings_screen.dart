@@ -12,7 +12,10 @@ import '../../state/auth/auth_cubit.dart';
 import '../../widgets/state_views.dart';
 
 class BookingsScreen extends StatefulWidget {
-  const BookingsScreen({super.key});
+  /// Switches the shell to the Mentors tab (used by the empty-state CTA).
+  final VoidCallback onBrowseMentors;
+
+  const BookingsScreen({super.key, required this.onBrowseMentors});
 
   @override
   State<BookingsScreen> createState() => _BookingsScreenState();
@@ -80,7 +83,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
         title: 'No bookings yet',
         message: 'Your booked sessions will show up here.',
         actionLabel: 'Find a mentor',
-        onAction: () => AppNavigator.toLogin(context),
+        onAction: widget.onBrowseMentors,
       );
     }
     return RefreshIndicator(

@@ -188,7 +188,7 @@ void main() {
 
   testWidgets('Bookings (signed-out) renders without layout errors',
       (tester) async {
-    await _pump(tester, const BookingsScreen(), withAuth: true);
+    await _pump(tester, BookingsScreen(onBrowseMentors: () {}), withAuth: true);
     _expectNoLayoutError(tester);
   });
 

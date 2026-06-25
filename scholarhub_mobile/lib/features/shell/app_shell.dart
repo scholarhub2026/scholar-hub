@@ -49,7 +49,7 @@ class _AppShellState extends State<AppShell> {
             initialQuery: _mentorQuery,
             filterNonce: _filterNonce,
           ),
-          const BookingsScreen(),
+          BookingsScreen(onBrowseMentors: () => _go(1)),
           ProfileScreen(onBrowseMentors: () => _go(1)),
         ],
       ),
