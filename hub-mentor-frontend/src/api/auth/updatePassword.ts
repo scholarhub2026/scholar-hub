@@ -1,0 +1,45 @@
+import axiosInstance from "@/lib/axios";
+import { useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
+
+// ✅ Define the request type (you can adjust fields as per your API)
+interface UpdatePasswordPayload {
+  id: string; // user ID
+  password?: string;
+  confirmPassword?: string;
+  is_available?:boolean;
+}
+
+// ✅ Define the expected API error shape
+interface APIErrorResponse {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+}
+
+// ✅ API call function
+const updatePasswordFn = async (variables: UpdatePasswordPayload) => {
+  const { id, ...payload } = variables;
+  const { data } = await axiosInstance.put(`/auth/${id}`, payload);
+  return data;
+};
+
+// ✅ Custom mutation hook
+export const useUpdatePasswordMutation = () => {
+  const navigate = useNavigate();
+
+  return useMutation({
+    mutationFn: updatePasswordFn,
+    onSuccess: (data) => {
+      toast.success(data.message || "Password updated successfully!");
+      // optional: navigate or clear form after success
+      navigate("/dashboard");
+    },
+    onError: (error: APIErrorResponse) => {
+      toast.error(error.response?.data?.message || "Failed to update password");
+    },
+  });
+};

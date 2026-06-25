@@ -1,0 +1,23 @@
+meta {
+  name: Create Form query
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{BASE_URL}}/api/inquery-form
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name":"Shahanas",
+    "email":"shahanas7210@gmail.com",
+    "phoneNumber":"9633892190",
+    "message":"hello message",
+    "place":"kaaniyapuram",
+    "subject":"Class 1"
+    
+  }
+}

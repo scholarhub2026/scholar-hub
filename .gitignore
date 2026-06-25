@@ -1,0 +1,24 @@
+# ── OS / editor ──
+.DS_Store
+**/.DS_Store
+*.swp
+**/.idea/
+**/.vscode/
+
+# ── Secrets — NEVER commit ──
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.sample
+*.pem
+
+# ── Dependencies ──
+**/node_modules/
+
+# ── Build / generated output ──
+**/build/
+**/dist/
+**/dist-ssr/
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies

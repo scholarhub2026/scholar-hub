@@ -1,0 +1,15 @@
+meta {
+  name: Get Approved Mentors
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{BASE_URL}}/api/mentor/?type=approve
+  body: json
+  auth: inherit
+}
+
+params:query {
+  type: approve
+}

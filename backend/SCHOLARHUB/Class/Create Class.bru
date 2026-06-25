@@ -1,0 +1,23 @@
+meta {
+  name: Create Class
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{BASE_URL}}/api/classes
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "class":"1",
+    "syllabus":"333333",
+    "basePrice":"10",
+    "subjects": [
+      { "subjectId": "662d5a0b38a1ab27cfcbc001", "price": 500 },
+      { "subjectId": "662d5a0b38a1ab27cfcbc002", "price": 600 }
+    ]
+  }
+}

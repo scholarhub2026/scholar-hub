@@ -1,0 +1,21 @@
+meta {
+  name: Create Mentor
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{BASE_URL}}/api/mentor
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "email":"infoway2025@gmail.com",
+    "name":"Shahanas",
+    "phone":"9633892190",
+    "place":"tvm",
+    "message":"Hello Message"
+  }
+}

@@ -1,0 +1,19 @@
+meta {
+  name: Update Booking Log
+  type: http
+  seq: 2
+}
+
+put {
+  url: {{BASE_URL}}/api/bookingLog/68f3b6b3b0e72ade900fa52b/68f49b27b142b7dcf6c71c18
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "date": "2025-10-21T00:00:00.000Z",
+        "startTime": "12:10",
+        "endTime": "18:11"
+  }
+}

@@ -1,0 +1,33 @@
+meta {
+  name: Payment check
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{BASE_URL}}/api/booking
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "studentId":"68d94dd96a78d2bafebb4ee6",
+    "mentorId":"68b865275235eb7be521a59c",
+    "studentName":"hello",
+    "sessionType":"hello",
+    "agreeToTerms":false,
+    "selectedSyllabus":"CBSC",
+    "bookingType":"full",
+    "totalAmount":"3333",
+    
+    "email":"shahanas@gmail.com",
+    "phone":"9876543210"
+    
+    
+    
+    
+    
+    
+  }
+}

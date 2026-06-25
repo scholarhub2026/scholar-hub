@@ -1,0 +1,20 @@
+meta {
+  name: Create Booking
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{BASE_URL}}/api/booking/log/68f3b6b3b0e72ade900fa52b
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "date":"2025-10-21T00:00:00.000Z",
+    "startTime":"12:10",
+    "endTime":"12:20"
+   
+  }
+}

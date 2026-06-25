@@ -1,0 +1,11 @@
+meta {
+  name: Get Un-Approved Mentors
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{BASE_URL}}/api/mentor
+  body: json
+  auth: inherit
+}

@@ -1,0 +1,17 @@
+meta {
+  name: Create Subject
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{BASE_URL}}/api/subject/subject
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name":"hi5ndi"
+  }
+}

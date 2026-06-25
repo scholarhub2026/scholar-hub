@@ -1,0 +1,19 @@
+meta {
+  name: Upload image
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{BASE_URL}}/api/media
+  body: multipartForm
+  auth: inherit
+}
+
+body:multipart-form {
+  image: @file(C:\Users\shaha\Downloads\1670259264862.jpeg) @contentType(file)
+}
+
+body:file {
+  file: @file(C:\Users\shaha\Downloads\1670259264862.jpeg) @contentType(image/jpeg)
+}

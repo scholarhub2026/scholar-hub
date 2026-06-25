@@ -1,0 +1,1 @@
+export type iMODAL_STATE =["form","thankyou","status", "MentorForm","mentorProfile","edit-booking",'student-log'] [number];

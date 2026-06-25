@@ -1,0 +1,62 @@
+import {Router } from 'express'
+import { createBookingController, generatePaymentLink, getBookingsForAdmin, updateBookingController } from '../controllers/Booking';
+import crypto from 'crypto';
+import Booking from '../models/Booking';
+import { log } from 'console';
+
+
+export const BookingRouter = Router();
+
+
+BookingRouter.post('/',createBookingController);
+BookingRouter.get('/:studentId',getBookingsForAdmin);
+BookingRouter.put('/:bookingId',updateBookingController);
+BookingRouter.post('/create-payment-link',generatePaymentLink);
+
+
+BookingRouter.post('/razorpay/webhook',async(req,res)=>{
+    log('Received webhook event');
+    try {
+         const secret = "6P.MqK78H!eN.xe";
+    const signature = req.headers["x-razorpay-signature"];
+    const body = req.body.toString(); // important!
+
+    const expectedSignature = crypto
+      .createHmac("sha256", secret)
+      .update(body)
+      .digest("hex");
+    if (expectedSignature !== signature) {
+        return res.status(400).json({ message: 'Invalid signature' });
+    }
+
+    // Handle the webhook event
+    const event = JSON.parse(body);
+    switch (event.event) {
+        case 'payment.captured':
+            // Handle payment capture
+            console.log('Payment captured event received');
+            
+            Booking.findByIdAndUpdate(event.payload.payment.entity.notes.bookingId, {
+                paymentStatus: 'completed',
+                transactionId: event.payload.payment.entity.id,
+            })
+            break;
+        case 'payment.failed':
+            // Handle payment failure
+            console.log('Payment failed event received');
+            
+            Booking.findByIdAndUpdate(event.payload.payment.entity.notes.bookingId, {
+                paymentStatus: 'failed',
+                transactionId: event.payload.payment.entity.id,
+            })
+            break;
+        default:
+            return res.status(400).json({ message: 'Unknown event type' });
+    }
+
+    res.status(200).json({ message: 'Webhook processed successfully' });
+} catch (error) {
+    return res.status(500).json({ message: 'Server Error', error: error.message })
+}
+
+});

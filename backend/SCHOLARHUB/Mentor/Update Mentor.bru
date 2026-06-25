@@ -1,0 +1,25 @@
+meta {
+  name: Update Mentor
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{BASE_URL}}/api/mentor/6858380458a01b4186d2e8a5
+  body: json
+  auth: bearer
+}
+
+headers {
+  hello: helo
+}
+
+auth:bearer {
+  token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2ODE4ZGVmNjI2NjY5YmIxMzFhODc1OGYiLCJpYXQiOjE3NTA2MDAwMjcsImV4cCI6MTc1MDY4NjQyN30.7Po6gIl6p1jmZ5nHDSgopTXbNN-nzoSS2maYFYEmEh8
+}
+
+body:json {
+  {
+    "admin_approve":true
+  }
+}

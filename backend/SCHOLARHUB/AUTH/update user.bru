@@ -1,0 +1,17 @@
+meta {
+  name: update user
+  type: http
+  seq: 3
+}
+
+put {
+  url: {{BASE_URL}}/api/auth/6818def626669bb131a8758f
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "email":"shahanas7210@gmail.com"
+  }
+}

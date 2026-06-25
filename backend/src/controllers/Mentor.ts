@@ -1,0 +1,204 @@
+import { decodeToken, encryptPassword } from '../helpers/Auth'
+import AuthModal from '../models/Auth'
+import { catchAsync } from '../utils/catchAsync'
+import { generatePass } from '../utils/generatePassword'
+import {
+  mongooseIdValidator,
+  validateRequiredFeilds,
+} from '../utils/validateFeilds'
+import { Request, Response } from 'express'
+
+import { paginate } from '../utils/pagination'
+import { sendMail } from '../utils/mailService'
+
+export const createMentor = catchAsync(async (req: Request, res: Response) => {
+  const requiredFields = ['email', 'name', 'phone', 'place', 'message']
+  const validationError = validateRequiredFeilds(req.body, requiredFields)
+
+  if (validationError) {
+    return res.status(400).json({ message: validationError })
+  }
+  const { email, phone } = req.body
+
+  const mentorData = {
+    ...req.body,
+    role: 'TUTOR',
+    password: await generatePass(),
+    admin_approve: false,
+  }
+
+  const isExist = await AuthModal.findOne({
+    $or: [{ email }, { phoneNumber: phone }],
+  })
+
+  if (isExist) {
+    return res.status(400).json({
+      message:
+        'User already exists with this email or phone number please contact admin',
+    })
+  }
+  const newMentor = await new AuthModal(mentorData).save()
+
+  return res.status(201).json({
+    message: 'Form Submitted Successfully',
+  })
+})
+
+export const getMentors = catchAsync(async (req: Request, res: Response) => {
+  const { type, id } = req.query
+  const page = parseInt(req.query.page as string) || 1
+  const limit = parseInt(req.query.limit as string) || 10
+
+  // If ID is passed, fetch and return that specific mentor
+  if (id) {
+    const mentor = await AuthModal.findOne(
+      { _id: id, role: 'TUTOR' },
+      {
+        password: 0,
+        emailVerified: 0,
+        admin_approve: 0,
+      }
+    ).populate({
+      path: 'selected_class.class_id', // populate class_id
+      select: ['class','syllabus'], // only return class name (or any other fields you need)
+    })
+    .populate({
+      path: 'selected_class.subject.subject_id', // populate nested subject_id
+      select: 'name', // only return subject name
+    })
+
+    if (!mentor) {
+      return res.status(404).json({ message: 'Mentor not found', data: null })
+    }
+
+    return res.status(200).json({
+      message: 'Mentor details fetched successfully',
+      data: mentor,
+    })
+  }
+
+  // Otherwise, return paginated mentors
+  // const mentors = await paginate(
+  //   AuthModal,
+  //   { role: 'TUTOR', admin_approve: type === 'approve' ? true : false },
+  //   page,
+  //   limit,
+  //   undefined,
+  //   {
+  //     password: 0,
+  //     emailVerified: 0,
+  //     admin_approve: 0,
+  //   }
+  // );
+
+  const mentors = await AuthModal.find(
+    { role: 'TUTOR', admin_approve: type === 'approve' ? true : false },
+    {
+      password: 0,
+      emailVerified: 0,
+      admin_approve: 0,
+    }
+  )
+    .populate({
+      path: 'selected_class.class_id', // populate class_id
+      select: 'class', // only return class name (or any other fields you need)
+    })
+    .populate({
+      path: 'selected_class.subject.subject_id', // populate nested subject_id
+      select: 'name', // only return subject name
+    })
+    .skip((page - 1) * limit)
+    .limit(limit)
+
+  if (!mentors) {
+    return res.status(400).json({ message: 'No mentors requested', data: [] })
+  }
+
+  return res.status(200).json({
+    message: `${
+      type === 'approve' ? 'Approved' : 'Unapproved'
+    } mentor details fetched successfully`,
+    data: mentors,
+  })
+})
+
+export const updateMentor = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { admin_approve } = req.body;
+
+  // ✅ Validate MongoDB ID
+  if (!mongooseIdValidator(id)) {
+    return res.status(400).json({ message: "Invalid Id" });
+  }
+
+  // ✅ Initialize payload
+  const payload: Record<string, any> = {};
+
+  // ✅ Handle admin approval logic
+  if (admin_approve) {
+    const authHeader = req.headers["authorization"];
+    const token = authHeader?.startsWith("Bearer ")
+      ? authHeader.split(" ")[1]
+      : null;
+
+    if (!token) {
+      return res.status(401).json({ message: "No token provided" });
+    }
+
+    const decoded = decodeToken(token);
+    if (!decoded?._id) {
+      return res.status(401).json({ message: "Invalid or expired token" });
+    }
+
+    const isAdmin = await AuthModal.findOne({ _id: decoded._id, role: "ADMIN" });
+
+    if (!isAdmin) {
+      return res
+        .status(403)
+        .json({ message: "You do not have the permission" });
+    }
+
+    const user = await AuthModal.findOne({ _id: id, role: "TUTOR" });
+    if (!user) {
+      return res.status(400).json({ message: "User not found" });
+    }
+
+    const pass = await generatePass();
+
+    // ✅ Try sending email — but continue even if it fails
+    try {
+      await sendMail(user.email, "Your Login credentials", "user", {
+        email: user.email,
+        pass: pass,
+      });
+    } catch (err) {
+      console.error("❌ Failed to send email:", err.message);
+      // Continue anyway
+    }
+
+    // ✅ Set payload regardless of email success/failure
+    payload.admin_approve = true;
+    payload.is_first_login = true;
+    payload.password = await encryptPassword(pass);
+  }
+
+  // ✅ Always update mentor info (even if email fails)
+  const updatedUser = await AuthModal.findByIdAndUpdate(
+    id,
+    {
+      $set: {
+        ...req.body,
+        ...payload,
+        additional_details: req.body.additional_details,
+        available_slot: req.body.available_slot,
+        selected_class: req.body.selected_class,
+      },
+    },
+    { new: true }
+  );
+
+  return res.status(200).json({
+    message: "User Details Updated Successfully",
+    data: updatedUser,
+  });
+});

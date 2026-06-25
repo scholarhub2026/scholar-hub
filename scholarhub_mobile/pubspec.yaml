@@ -1,0 +1,60 @@
+name: scholarhub
+description: "Scholar Hub — expert mentorship, in your pocket."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.8
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # Networking
+  dio: ^5.7.0
+
+  # State management
+
+  # Local storage
+  shared_preferences: ^2.3.2
+
+  # UI / UX
+  google_fonts: ^6.2.1
+  cached_network_image: ^3.4.1
+  flutter_animate: ^4.5.0
+  shimmer: ^3.0.0
+  flutter_svg: ^2.0.10+1
+  smooth_page_indicator: ^1.2.0+3
+  lucide_icons: ^0.257.0
+
+  # Utilities
+  intl: ^0.19.0
+  url_launcher: ^6.3.1
+  flutter_bloc: ^9.1.1
+  equatable: ^2.0.8
+  flutter_screenutil: ^5.9.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.1
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/icons/
+
+# App launcher icon generated from the Scholar Hub logo.
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/launcher/icon.png"
+  remove_alpha_ios: true
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/launcher/icon_foreground.png"
+  min_sdk_android: 21

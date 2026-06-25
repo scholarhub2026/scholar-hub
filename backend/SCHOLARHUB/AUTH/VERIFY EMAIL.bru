@@ -1,0 +1,17 @@
+meta {
+  name: VERIFY EMAIL
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{BASE_URL}}/api/auth/verify/6818def626669bb131a8758f
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "otp":"078683"
+  }
+}
