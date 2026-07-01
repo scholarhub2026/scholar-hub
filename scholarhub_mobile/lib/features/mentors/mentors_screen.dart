@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../core/navigation/app_navigator.dart';
 import '../../core/theme/app_colors.dart';
-import '../../data/models/mentor.dart';
-import '../../data/services/mentor_service.dart';
+import '../../state/view_status.dart';
 import '../../widgets/state_views.dart';
+import 'mentors_cubit.dart';
 import 'widgets/mentor_card.dart';
 
 class MentorsScreen extends StatefulWidget {
@@ -36,23 +37,19 @@ class MentorsScreen extends StatefulWidget {
 }
 
 class _MentorsScreenState extends State<MentorsScreen> {
-  final MentorService _service = MentorService();
+  late final MentorsCubit _cubit;
   final TextEditingController _searchController = TextEditingController();
-
-  List<Mentor> _all = [];
-  bool _loading = true;
-  String? _error;
-  String _query = '';
-  String? _syllabus;
 
   @override
   void initState() {
     super.initState();
-    if (widget.initialQuery != null && widget.initialQuery!.isNotEmpty) {
-      _query = widget.initialQuery!.toLowerCase();
-      _searchController.text = widget.initialQuery!;
+    _cubit = MentorsCubit();
+    final q = widget.initialQuery;
+    if (q != null && q.isNotEmpty) {
+      _searchController.text = q;
+      _cubit.setQuery(q);
     }
-    _load();
+    _cubit.load();
   }
 
   @override
@@ -62,59 +59,40 @@ class _MentorsScreenState extends State<MentorsScreen> {
     if (widget.filterNonce != oldWidget.filterNonce &&
         widget.initialQuery != null) {
       _searchController.text = widget.initialQuery!;
-      setState(() {
-        _query = widget.initialQuery!.toLowerCase();
-        _syllabus = null;
-      });
+      _cubit.applyExternalQuery(widget.initialQuery!);
     }
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _cubit.close();
     super.dispose();
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final mentors = await _service.getApprovedMentors();
-      if (!mounted) return;
-      setState(() {
-        _all = mentors;
-        _loading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = e.toString();
-        _loading = false;
-      });
-    }
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider.value(
+      value: _cubit,
+      child: _MentorsView(
+        controller: _searchController,
+        showBack: widget.showBack,
+        lockedTitle: widget.lockedTitle,
+      ),
+    );
   }
+}
 
-  List<String> get _syllabi {
-    final set = <String>{};
-    for (final m in _all) {
-      set.addAll(m.syllabi);
-    }
-    return set.toList();
-  }
+class _MentorsView extends StatelessWidget {
+  final TextEditingController controller;
+  final bool showBack;
+  final String? lockedTitle;
 
-  List<Mentor> get _filtered {
-    return _all.where((m) {
-      final matchesQuery = _query.isEmpty ||
-          m.fullName.toLowerCase().contains(_query) ||
-          m.subjectNames
-              .any((s) => s.toLowerCase().contains(_query)) ||
-          m.headline.toLowerCase().contains(_query);
-      final matchesSyllabus = _syllabus == null || m.syllabi.contains(_syllabus);
-      return matchesQuery && matchesSyllabus;
-    }).toList();
-  }
+  const _MentorsView({
+    required this.controller,
+    required this.showBack,
+    required this.lockedTitle,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -122,24 +100,30 @@ class _MentorsScreenState extends State<MentorsScreen> {
       backgroundColor: AppColors.background,
       body: SafeArea(
         bottom: false,
-        child: Column(
-          children: [
-            _buildHeader(),
-            Expanded(child: _buildBody()),
-          ],
+        child: BlocBuilder<MentorsCubit, MentorsState>(
+          builder: (context, state) {
+            return Column(
+              children: [
+                _buildHeader(context, state),
+                Expanded(child: _buildBody(context, state)),
+              ],
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _buildHeader() {
-    final syllabi = _syllabi;
+  Widget _buildHeader(BuildContext context, MentorsState state) {
+    final cubit = context.read<MentorsCubit>();
+    final syllabi = state.syllabi;
+    final classes = state.classOptions;
     return Container(
-      padding: EdgeInsets.fromLTRB(20.w, (widget.showBack ? 4 : 12).h, 20.w, 16.h),
+      padding: EdgeInsets.fromLTRB(20.w, (showBack ? 4 : 12).h, 20.w, 16.h),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (widget.showBack) ...[
+          if (showBack) ...[
             Row(
               children: [
                 IconButton(
@@ -151,7 +135,7 @@ class _MentorsScreenState extends State<MentorsScreen> {
                 SizedBox(width: 12.w),
                 Expanded(
                   child: Text(
-                    widget.lockedTitle ?? 'Mentors',
+                    lockedTitle ?? 'Mentors',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context)
@@ -178,46 +162,45 @@ class _MentorsScreenState extends State<MentorsScreen> {
             ),
             SizedBox(height: 16.h),
           ],
-          // Search
+          // Search — matches name, subject or location.
           TextField(
-            controller: _searchController,
-            onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
+            controller: controller,
+            onChanged: cubit.setQuery,
             decoration: InputDecoration(
-              hintText: 'Search by name or subject',
+              hintText: 'Search by name, subject or location',
               prefixIcon:
                   const Icon(LucideIcons.search, color: AppColors.textMuted),
-              suffixIcon: _query.isEmpty
+              suffixIcon: state.query.isEmpty
                   ? null
                   : IconButton(
                       icon: Icon(LucideIcons.x, size: 18.sp),
                       onPressed: () {
-                        _searchController.clear();
-                        setState(() => _query = '');
+                        controller.clear();
+                        cubit.setQuery('');
                       },
                     ),
             ),
           ),
           if (syllabi.isNotEmpty) ...[
             SizedBox(height: 14.h),
-            SizedBox(
-              height: 36.h,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                children: [
-                  _FilterChip(
-                    label: 'All',
-                    selected: _syllabus == null,
-                    onTap: () => setState(() => _syllabus = null),
-                  ),
-                  ...syllabi.map(
-                    (s) => _FilterChip(
-                      label: s,
-                      selected: _syllabus == s,
-                      onTap: () => setState(() => _syllabus = s),
-                    ),
-                  ),
-                ],
-              ),
+            _chipRow(
+              context,
+              label: 'All boards',
+              options: syllabi,
+              selected: state.syllabus,
+              onAll: () => cubit.setSyllabus(null),
+              onSelect: cubit.setSyllabus,
+            ),
+          ],
+          if (classes.isNotEmpty) ...[
+            SizedBox(height: 10.h),
+            _chipRow(
+              context,
+              label: 'All classes',
+              options: classes,
+              selected: state.classFilter,
+              onAll: () => cubit.setClass(null),
+              onSelect: cubit.setClass,
             ),
           ],
         ],
@@ -225,26 +208,62 @@ class _MentorsScreenState extends State<MentorsScreen> {
     );
   }
 
-  Widget _buildBody() {
-    if (_loading) return ShimmerList(itemHeight: 230.h);
-    if (_error != null) {
-      return ErrorStateView(message: _error!, onRetry: _load);
+  Widget _chipRow(
+    BuildContext context, {
+    required String label,
+    required List<String> options,
+    required String? selected,
+    required VoidCallback onAll,
+    required ValueChanged<String> onSelect,
+  }) {
+    return SizedBox(
+      height: 36.h,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: [
+          _FilterChip(
+            label: label,
+            selected: selected == null,
+            onTap: onAll,
+          ),
+          ...options.map(
+            (o) => _FilterChip(
+              label: o,
+              selected: selected == o,
+              onTap: () => onSelect(o),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBody(BuildContext context, MentorsState state) {
+    final cubit = context.read<MentorsCubit>();
+    if (state.status.isLoading || state.status.isInitial) {
+      return ShimmerList(itemHeight: 230.h);
     }
-    final mentors = _filtered;
+    if (state.status.isFailure) {
+      return ErrorStateView(
+        message: state.error ?? 'Unable to load mentors.',
+        onRetry: cubit.load,
+      );
+    }
+    final mentors = state.filtered;
     if (mentors.isEmpty) {
       return EmptyState(
         icon: LucideIcons.searchX,
         title: 'No mentors found',
-        message: _all.isEmpty
+        message: state.all.isEmpty
             ? 'There are no mentors available right now. Please check back later.'
             : 'Try adjusting your search or filters.',
-        actionLabel: _all.isEmpty ? 'Refresh' : null,
-        onAction: _all.isEmpty ? _load : null,
+        actionLabel: state.all.isEmpty ? 'Refresh' : null,
+        onAction: state.all.isEmpty ? cubit.load : null,
       );
     }
     return RefreshIndicator(
       color: AppColors.primary,
-      onRefresh: _load,
+      onRefresh: cubit.load,
       child: ListView.separated(
         padding: EdgeInsets.fromLTRB(20.w, 4.h, 20.w, 120.h),
         itemCount: mentors.length,

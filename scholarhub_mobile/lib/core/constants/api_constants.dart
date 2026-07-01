@@ -26,6 +26,8 @@ class ApiConstants {
 
   // Ads / promotional banners
   static const String ads = '/ads';
+  static const String adsAll = '/ads/all';
+  static String adById(String id) => '/ads/$id';
 
   // Mentors
   static const String mentor = '/mentor';

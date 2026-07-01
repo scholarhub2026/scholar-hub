@@ -8,66 +8,35 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/referral.dart';
-import '../../data/services/referral_service.dart';
 import '../../state/auth/auth_cubit.dart';
+import '../../state/view_status.dart';
 import '../../widgets/state_views.dart';
+import 'referral_cubit.dart';
 
 /// Refer & Earn — shows the user's shareable code, reward balance and the
 /// friends who've joined through it.
-class ReferScreen extends StatefulWidget {
+class ReferScreen extends StatelessWidget {
   const ReferScreen({super.key});
 
   @override
-  State<ReferScreen> createState() => _ReferScreenState();
+  Widget build(BuildContext context) {
+    final userId = context.read<AuthCubit>().state.user?.id ?? '';
+    return BlocProvider(
+      create: (_) => ReferralCubit()..load(userId),
+      child: _ReferView(userId: userId),
+    );
+  }
 }
 
-class _ReferScreenState extends State<ReferScreen> {
-  final ReferralService _service = ReferralService();
-
-  ReferralInfo? _info;
-  bool _loading = true;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    final userId = context.read<AuthCubit>().state.user?.id;
-    if (userId == null || userId.isEmpty) {
-      setState(() {
-        _loading = false;
-        _error = 'You need to be signed in to refer friends.';
-      });
-      return;
-    }
-    try {
-      final info = await _service.getReferral(userId);
-      if (!mounted) return;
-      setState(() {
-        _info = info;
-        _loading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = e.toString();
-        _loading = false;
-      });
-    }
-  }
+class _ReferView extends StatelessWidget {
+  final String userId;
+  const _ReferView({required this.userId});
 
   String _shareMessage(String code) =>
       'Join me on Scholar Hub — book expert mentors for any subject. '
       'Use my code $code when you sign up. https://www.scholarhub.live/';
 
-  void _copyCode(String code) {
+  void _copyCode(BuildContext context, String code) {
     Clipboard.setData(ClipboardData(text: code));
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Referral code copied!')),
@@ -93,24 +62,32 @@ class _ReferScreenState extends State<ReferScreen> {
         ),
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
       ),
-      body: _buildBody(),
+      body: BlocBuilder<ReferralCubit, ReferralState>(
+        builder: (context, state) {
+          if (state.status.isLoading || state.status.isInitial) {
+            return const Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            );
+          }
+          if (state.status.isFailure || state.info == null) {
+            return ErrorStateView(
+              message: state.error ?? 'Unable to load your referral details.',
+              onRetry: () => context.read<ReferralCubit>().load(userId),
+            );
+          }
+          return _content(context, state.info!);
+        },
+      ),
     );
   }
 
-  Widget _buildBody() {
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
-    }
-    if (_error != null) {
-      return ErrorStateView(message: _error!, onRetry: _load);
-    }
-    final info = _info!;
+  Widget _content(BuildContext context, ReferralInfo info) {
     return ListView(
       padding: EdgeInsets.fromLTRB(20.w, 8.h, 20.w, 40.h),
       children: [
         _rewardHero(info),
         SizedBox(height: 20.h),
-        _codeCard(info.code),
+        _codeCard(context, info.code),
         SizedBox(height: 20.h),
         _statsRow(info),
         SizedBox(height: 24.h),
@@ -177,7 +154,7 @@ class _ReferScreenState extends State<ReferScreen> {
     );
   }
 
-  Widget _codeCard(String code) {
+  Widget _codeCard(BuildContext context, String code) {
     return Container(
       padding: EdgeInsets.all(18.r),
       decoration: BoxDecoration(
@@ -217,7 +194,7 @@ class _ReferScreenState extends State<ReferScreen> {
                 ),
               ),
               SizedBox(width: 10.w),
-              _iconAction(LucideIcons.copy, () => _copyCode(code)),
+              _iconAction(LucideIcons.copy, () => _copyCode(context, code)),
             ],
           ),
           SizedBox(height: 14.h),

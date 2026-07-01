@@ -8,6 +8,7 @@ import '../../core/utils/formatters.dart';
 import '../../state/auth/auth_cubit.dart';
 import '../../widgets/app_snackbar.dart';
 import '../settings/settings_screen.dart';
+import 'ads/admin_ads_screen.dart';
 import 'bookings/admin_bookings_screen.dart';
 import 'classes/admin_classes_screen.dart';
 import 'dashboard/admin_dashboard_screen.dart';
@@ -28,6 +29,7 @@ const _destinations = <_AdminDest>[
   _AdminDest(LucideIcons.graduationCap, 'Classes'),
   _AdminDest(LucideIcons.bookOpen, 'Subjects'),
   _AdminDest(LucideIcons.calendarCheck, 'Bookings'),
+  _AdminDest(LucideIcons.megaphone, 'Ads'),
   _AdminDest(LucideIcons.settings, 'Settings'),
 ];
 
@@ -71,6 +73,7 @@ class _AdminShellState extends State<AdminShell> {
           AdminClassesScreen(),
           AdminSubjectsScreen(),
           AdminBookingsScreen(),
+          AdminAdsScreen(),
           SettingsScreen(),
         ],
       ),

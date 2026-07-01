@@ -53,6 +53,10 @@ class _BookingPlanStepState extends State<BookingPlanStep> {
       children: [
         _mentorHeader(),
         SizedBox(height: 22.h),
+        _label('Session Mode'),
+        SizedBox(height: 10.h),
+        _sessionModeSelector(),
+        SizedBox(height: 22.h),
         _label('1. Select Syllabus'),
         SizedBox(height: 10.h),
         _syllabusChips(),
@@ -253,6 +257,79 @@ class _BookingPlanStepState extends State<BookingPlanStep> {
                     ),
                   ),
                 ],
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _sessionModeSelector() {
+    return Row(
+      children: SessionMode.values.map((m) {
+        final selected = draft.sessionMode == m;
+        final icon =
+            m == SessionMode.online ? LucideIcons.monitor : LucideIcons.mapPin;
+        final subtitle = m == SessionMode.online
+            ? 'Live video classes'
+            : 'In-person at the tutor';
+        return Expanded(
+          child: Padding(
+            padding: EdgeInsets.only(right: m == SessionMode.online ? 10.w : 0),
+            child: GestureDetector(
+              onTap: () {
+                draft.sessionMode = m;
+                onChanged();
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: EdgeInsets.symmetric(vertical: 14.h, horizontal: 12.w),
+                decoration: BoxDecoration(
+                  gradient: selected ? AppColors.brandGradient : null,
+                  color: selected ? null : AppColors.surface,
+                  borderRadius: BorderRadius.circular(14.r),
+                  border: Border.all(
+                    color: selected ? Colors.transparent : AppColors.border,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      icon,
+                      size: 20.sp,
+                      color: selected ? Colors.white : AppColors.primary,
+                    ),
+                    SizedBox(width: 10.w),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            m.label,
+                            style: TextStyle(
+                              fontSize: 13.5.sp,
+                              fontWeight: FontWeight.w700,
+                              color:
+                                  selected ? Colors.white : AppColors.textPrimary,
+                            ),
+                          ),
+                          Text(
+                            subtitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 10.5.sp,
+                              color: selected
+                                  ? Colors.white.withValues(alpha: 0.9)
+                                  : AppColors.textMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

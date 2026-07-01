@@ -168,6 +168,17 @@ class Mentor {
     return set.toList();
   }
 
+  /// Unique class names (e.g. "Class 10"), optionally scoped to a syllabus.
+  List<String> classNames({String? syllabus}) {
+    final set = <String>{};
+    for (final c in classes) {
+      if (c.className.isEmpty) continue;
+      if (syllabus != null && c.syllabus != syllabus) continue;
+      set.add(c.className);
+    }
+    return set.toList();
+  }
+
   /// Unique subject names across all classes.
   List<String> get subjectNames {
     final set = <String>{};

@@ -6,12 +6,13 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/review.dart';
-import '../../../data/services/review_service.dart';
 import '../../../state/auth/auth_cubit.dart';
+import '../../../state/view_status.dart';
+import 'reviews_cubit.dart';
 
 /// Reviews block for the mentor detail screen: average summary, the list of
 /// ratings, and — for signed-in students — a "Rate" action that opens a sheet.
-class MentorReviewsSection extends StatefulWidget {
+class MentorReviewsSection extends StatelessWidget {
   final String mentorId;
   final String mentorName;
 
@@ -22,60 +23,40 @@ class MentorReviewsSection extends StatefulWidget {
   });
 
   @override
-  State<MentorReviewsSection> createState() => _MentorReviewsSectionState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => ReviewsCubit(mentorId: mentorId)..load(),
+      child: _ReviewsView(mentorId: mentorId, mentorName: mentorName),
+    );
+  }
 }
 
-class _MentorReviewsSectionState extends State<MentorReviewsSection> {
-  final ReviewService _service = ReviewService();
+class _ReviewsView extends StatelessWidget {
+  final String mentorId;
+  final String mentorName;
 
-  MentorReviews? _data;
-  bool _loading = true;
+  const _ReviewsView({required this.mentorId, required this.mentorName});
 
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    try {
-      final data = await _service.getMentorReviews(widget.mentorId);
-      if (!mounted) return;
-      setState(() {
-        _data = data;
-        _loading = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _loading = false);
-    }
-  }
-
-  Future<void> _openRateSheet() async {
-    final auth = context.read<AuthCubit>();
-    final studentId = auth.user?.id;
+  Future<void> _openRateSheet(BuildContext context) async {
+    final studentId = context.read<AuthCubit>().state.user?.id;
     if (studentId == null || studentId.isEmpty) return;
 
+    final reviewsCubit = context.read<ReviewsCubit>();
     final submitted = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _RateSheet(
-        mentorName: widget.mentorName,
-        onSubmit: (rating, comment) => _service.submitReview(
-          studentId: studentId,
-          mentorId: widget.mentorId,
-          rating: rating,
-          comment: comment,
-        ),
+      builder: (_) => BlocProvider(
+        create: (_) => RateReviewCubit(studentId: studentId, mentorId: mentorId),
+        child: _RateSheet(mentorName: mentorName),
       ),
     );
 
-    if (submitted == true && mounted) {
+    if (submitted == true && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Thanks! Your rating was submitted.')),
       );
-      _load();
+      reviewsCubit.load();
     }
   }
 
@@ -83,57 +64,61 @@ class _MentorReviewsSectionState extends State<MentorReviewsSection> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthCubit>().state;
     final canRate = auth.isAuthenticated && (auth.user?.isStudent ?? false);
-    final data = _data;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
+    return BlocBuilder<ReviewsCubit, ReviewsState>(
+      builder: (context, state) {
+        final data = state.data;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              height: 30.h,
-              width: 30.w,
-              decoration: BoxDecoration(
-                color: AppColors.primaryLight,
-                borderRadius: BorderRadius.circular(9.r),
-              ),
-              child: Icon(LucideIcons.star, size: 17.sp, color: AppColors.primary),
+            Row(
+              children: [
+                Container(
+                  height: 30.h,
+                  width: 30.w,
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryLight,
+                    borderRadius: BorderRadius.circular(9.r),
+                  ),
+                  child: Icon(LucideIcons.star, size: 17.sp, color: AppColors.primary),
+                ),
+                SizedBox(width: 10.w),
+                Text(
+                  'Reviews',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 17.sp,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const Spacer(),
+                if (canRate)
+                  TextButton.icon(
+                    onPressed: () => _openRateSheet(context),
+                    icon: Icon(Icons.rate_review_outlined, size: 16.sp),
+                    label: const Text('Rate'),
+                    style: TextButton.styleFrom(foregroundColor: AppColors.primary),
+                  ),
+              ],
             ),
-            SizedBox(width: 10.w),
-            Text(
-              'Reviews',
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-                fontSize: 17.sp,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const Spacer(),
-            if (canRate)
-              TextButton.icon(
-                onPressed: _openRateSheet,
-                icon: Icon(Icons.rate_review_outlined, size: 16.sp),
-                label: const Text('Rate'),
-                style: TextButton.styleFrom(foregroundColor: AppColors.primary),
-              ),
+            SizedBox(height: 12.h),
+            if (state.status.isLoading || state.status.isInitial)
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: 16.h),
+                child: const Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                ),
+              )
+            else if (data == null || data.count == 0)
+              _emptyState(canRate)
+            else ...[
+              _summaryCard(data),
+              SizedBox(height: 14.h),
+              ...data.reviews.map(_reviewCard),
+            ],
           ],
-        ),
-        SizedBox(height: 12.h),
-        if (_loading)
-          Padding(
-            padding: EdgeInsets.symmetric(vertical: 16.h),
-            child: const Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
-            ),
-          )
-        else if (data == null || data.count == 0)
-          _emptyState(canRate)
-        else ...[
-          _summaryCard(data),
-          SizedBox(height: 14.h),
-          ...data.reviews.map(_reviewCard),
-        ],
-      ],
+        );
+      },
     );
   }
 
@@ -152,7 +137,7 @@ class _MentorReviewsSectionState extends State<MentorReviewsSection> {
           SizedBox(height: 10.h),
           Text(
             canRate
-                ? 'No reviews yet — be the first to rate ${widget.mentorName}.'
+                ? 'No reviews yet — be the first to rate $mentorName.'
                 : 'No reviews yet.',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 13.5.sp, color: AppColors.textSecondary),
@@ -259,7 +244,7 @@ class _MentorReviewsSectionState extends State<MentorReviewsSection> {
   }
 }
 
-/// Read-only star row that supports half-ish rounding for averages.
+/// Read-only star row that supports rounding for averages.
 class _StarRow extends StatelessWidget {
   final double rating;
   final double size;
@@ -285,13 +270,12 @@ class _StarRow extends StatelessWidget {
   }
 }
 
-/// Bottom sheet for submitting a rating. Returns `true` via Navigator.pop on a
-/// successful submit.
+/// Bottom sheet for submitting a rating. Owns the comment controller (lifecycle
+/// only); all form state lives in [RateReviewCubit]. Pops `true` on success.
 class _RateSheet extends StatefulWidget {
   final String mentorName;
-  final Future<void> Function(int rating, String comment) onSubmit;
 
-  const _RateSheet({required this.mentorName, required this.onSubmit});
+  const _RateSheet({required this.mentorName});
 
   @override
   State<_RateSheet> createState() => _RateSheetState();
@@ -299,9 +283,6 @@ class _RateSheet extends StatefulWidget {
 
 class _RateSheetState extends State<_RateSheet> {
   final TextEditingController _comment = TextEditingController();
-  int _rating = 0;
-  bool _submitting = false;
-  String? _error;
 
   @override
   void dispose() {
@@ -309,132 +290,122 @@ class _RateSheetState extends State<_RateSheet> {
     super.dispose();
   }
 
-  Future<void> _submit() async {
-    if (_rating == 0) {
-      setState(() => _error = 'Please tap a star to choose a rating.');
-      return;
-    }
-    setState(() {
-      _submitting = true;
-      _error = null;
-    });
-    try {
-      await widget.onSubmit(_rating, _comment.text.trim());
-      if (mounted) Navigator.pop(context, true);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _submitting = false;
-        _error = e.toString();
-      });
-    }
+  Future<void> _submit(BuildContext context) async {
+    final ok = await context.read<RateReviewCubit>().submit(_comment.text.trim());
+    if (ok && context.mounted) Navigator.pop(context, true);
   }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
         padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 24.h),
         decoration: BoxDecoration(
           color: AppColors.background,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40.w,
-                height: 4.h,
-                decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(4.r),
-                ),
-              ),
-            ),
-            SizedBox(height: 18.h),
-            Text(
-              'Rate ${widget.mentorName}',
-              style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w800),
-            ),
-            SizedBox(height: 4.h),
-            Text(
-              'Share your experience to help other students & parents.',
-              style: TextStyle(fontSize: 13.sp, color: AppColors.textSecondary),
-            ),
-            SizedBox(height: 18.h),
-            Center(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: List.generate(5, (i) {
-                  final value = i + 1;
-                  final active = value <= _rating;
-                  return GestureDetector(
-                    onTap: () => setState(() => _rating = value),
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 6.w),
-                      child: Icon(
-                        active ? Icons.star_rounded : Icons.star_outline_rounded,
-                        size: 40.sp,
-                        color: active ? AppColors.star : AppColors.border,
-                      ),
+        child: BlocBuilder<RateReviewCubit, RateReviewState>(
+          builder: (context, state) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40.w,
+                    height: 4.h,
+                    decoration: BoxDecoration(
+                      color: AppColors.border,
+                      borderRadius: BorderRadius.circular(4.r),
                     ),
-                  );
-                }),
-              ),
-            ),
-            SizedBox(height: 18.h),
-            TextField(
-              controller: _comment,
-              maxLines: 3,
-              maxLength: 500,
-              decoration: const InputDecoration(
-                hintText: 'Add a comment (optional)',
-              ),
-            ),
-            if (_error != null) ...[
-              SizedBox(height: 8.h),
-              Text(
-                _error!,
-                style: TextStyle(color: AppColors.danger, fontSize: 12.5.sp),
-              ),
-            ],
-            SizedBox(height: 14.h),
-            SizedBox(
-              width: double.infinity,
-              height: 52.h,
-              child: ElevatedButton(
-                onPressed: _submitting ? null : _submit,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14.r),
                   ),
                 ),
-                child: _submitting
-                    ? SizedBox(
-                        height: 20.h,
-                        width: 20.h,
-                        child: const CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
+                SizedBox(height: 18.h),
+                Text(
+                  'Rate ${widget.mentorName}',
+                  style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w800),
+                ),
+                SizedBox(height: 4.h),
+                Text(
+                  'Share your experience to help other students & parents.',
+                  style: TextStyle(fontSize: 13.sp, color: AppColors.textSecondary),
+                ),
+                SizedBox(height: 18.h),
+                Center(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: List.generate(5, (i) {
+                      final value = i + 1;
+                      final active = value <= state.rating;
+                      return GestureDetector(
+                        onTap: () =>
+                            context.read<RateReviewCubit>().setRating(value),
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 6.w),
+                          child: Icon(
+                            active
+                                ? Icons.star_rounded
+                                : Icons.star_outline_rounded,
+                            size: 40.sp,
+                            color: active ? AppColors.star : AppColors.border,
+                          ),
                         ),
-                      )
-                    : Text(
-                        'Submit rating',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15.sp,
-                        ),
+                      );
+                    }),
+                  ),
+                ),
+                SizedBox(height: 18.h),
+                TextField(
+                  controller: _comment,
+                  maxLines: 3,
+                  maxLength: 500,
+                  decoration: const InputDecoration(
+                    hintText: 'Add a comment (optional)',
+                  ),
+                ),
+                if (state.error != null) ...[
+                  SizedBox(height: 8.h),
+                  Text(
+                    state.error!,
+                    style: TextStyle(color: AppColors.danger, fontSize: 12.5.sp),
+                  ),
+                ],
+                SizedBox(height: 14.h),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52.h,
+                  child: ElevatedButton(
+                    onPressed:
+                        state.submitting ? null : () => _submit(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14.r),
                       ),
-              ),
-            ),
-          ],
+                    ),
+                    child: state.submitting
+                        ? SizedBox(
+                            height: 20.h,
+                            width: 20.h,
+                            child: const CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(
+                            'Submit rating',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15.sp,
+                            ),
+                          ),
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );

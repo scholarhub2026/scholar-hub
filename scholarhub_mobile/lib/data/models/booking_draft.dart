@@ -2,6 +2,14 @@ import 'mentor.dart';
 
 enum BookingType { full, individual, multiple }
 
+enum SessionMode { online, offline }
+
+extension SessionModeX on SessionMode {
+  String get apiValue => this == SessionMode.online ? 'online' : 'offline';
+
+  String get label => this == SessionMode.online ? 'Online' : 'Offline';
+}
+
 extension BookingTypeX on BookingType {
   String get apiValue {
     switch (this) {
@@ -34,6 +42,7 @@ class BookingDraft {
   String? syllabus;
   MentorClass? selectedClass;
   BookingType? bookingType;
+  SessionMode sessionMode = SessionMode.online;
   final Set<String> selectedSubjectIds = {};
 
   // Student details
@@ -91,6 +100,7 @@ class BookingDraft {
       'email': email.trim(),
       'phone': phone.trim(),
       'sessionType': 'one-time',
+      'sessionMode': sessionMode.apiValue,
       'message': message.trim(),
       'agreeToTerms': true,
       'selectedSyllabus': syllabus,

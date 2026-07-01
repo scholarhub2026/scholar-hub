@@ -18,6 +18,7 @@ export interface IBooking extends Document {
   email: string
   phone: string
   sessionType: string
+  sessionMode?: 'online' | 'offline' | ''
   message?: string
   agreeToTerms: boolean
   selectedSyllabus?: string
@@ -91,6 +92,11 @@ const BookingSchema = new mongoose.Schema<IBooking>(
     },
     sessionType: {
       type: String,
+    },
+    sessionMode: {
+      type: String,
+      enum: ['online', 'offline', ''],
+      default: '',
     },
     message: {
       type: String,
