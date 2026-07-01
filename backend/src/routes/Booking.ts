@@ -2,6 +2,7 @@ import {Router } from 'express'
 import { createBookingController, generatePaymentLink, getBookingsForAdmin, updateBookingController } from '../controllers/Booking';
 import crypto from 'crypto';
 import Booking from '../models/Booking';
+import { rewardReferralOnBooking } from '../utils/referral';
 import { log } from 'console';
 
 
@@ -35,11 +36,17 @@ BookingRouter.post('/razorpay/webhook',async(req,res)=>{
         case 'payment.captured':
             // Handle payment capture
             console.log('Payment captured event received');
-            
-            Booking.findByIdAndUpdate(event.payload.payment.entity.notes.bookingId, {
-                paymentStatus: 'completed',
-                transactionId: event.payload.payment.entity.id,
-            })
+
+            const paidBooking = await Booking.findByIdAndUpdate(
+                event.payload.payment.entity.notes.bookingId,
+                {
+                    paymentStatus: 'completed',
+                    transactionId: event.payload.payment.entity.id,
+                },
+                { new: true }
+            )
+            // First completed booking pays out the referrer (idempotent).
+            await rewardReferralOnBooking(paidBooking?.studentId?.toString())
             break;
         case 'payment.failed':
             // Handle payment failure

@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../core/navigation/app_navigator.dart';
 import '../../core/theme/app_colors.dart';
+import 'widgets/ads_carousel.dart';
 import 'widgets/cta_section.dart';
 import 'widgets/highlights_rail.dart';
 import 'widgets/home_header.dart';
@@ -28,6 +29,8 @@ class HomeScreen extends StatelessWidget {
         padding: EdgeInsets.zero,
         children: [
           HomeHeader(onBrowseMentors: onBrowseMentors),
+          SizedBox(height: 20.h),
+          const AdsCarousel(),
           SizedBox(height: 26.h),
           SubjectScroller(
             onSubjectTap: onSubjectTap,

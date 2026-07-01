@@ -182,7 +182,7 @@ class _BookingCard extends StatelessWidget {
           Row(
             children: [
               _StatusChip(
-                label: _label(booking.bookingStatus),
+                label: 'Booking: ${_label(booking.bookingStatus)}',
                 color: _statusColor(booking.bookingStatus),
               ),
               SizedBox(width: 8.w),

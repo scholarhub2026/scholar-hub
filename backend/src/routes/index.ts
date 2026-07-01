@@ -8,6 +8,9 @@ import { mentorRouter } from './Mentor'
 import { mediaRouter } from './Media'
 import { BookingRouter } from './Booking'
 import { BookingLogRouter } from './BookingLog'
+import { ReviewRouter } from './Review'
+import { ReferralRouter } from './Referral'
+import { AdRouter } from './Ad'
 import upload from '../utils/multer'
 import { uploadMedia } from '../controllers/Media'
 
@@ -25,6 +28,9 @@ routers.use('/api/mentor',mentorRouter)
 routers.use('/api/media',mediaRouter)
 routers.use('/api/booking',BookingRouter);
 routers.use('/api/bookingLog',BookingLogRouter);
+routers.use('/api/review',ReviewRouter);
+routers.use('/api/referral',ReferralRouter);
+routers.use('/api/ads',AdRouter);
 routers.use('/api/media',upload.single('image'),uploadMedia);
 
 export default routers

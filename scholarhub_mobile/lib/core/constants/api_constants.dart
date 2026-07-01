@@ -15,6 +15,17 @@ class ApiConstants {
   static const String verifyToken = '/auth/verify-token';
   static String verifyOtp(String id) => '/auth/verify/$id';
   static String updateUser(String id) => '/auth/$id';
+  static String fcmToken(String id) => '/auth/fcm-token/$id';
+
+  // Reviews / ratings
+  static const String review = '/review';
+  static String mentorReviews(String mentorId) => '/review/mentor/$mentorId';
+
+  // Refer & earn
+  static String referral(String userId) => '/referral/$userId';
+
+  // Ads / promotional banners
+  static const String ads = '/ads';
 
   // Mentors
   static const String mentor = '/mentor';

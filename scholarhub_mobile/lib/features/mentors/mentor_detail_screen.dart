@@ -14,6 +14,7 @@ import '../../widgets/network_avatar.dart';
 import '../../widgets/primary_button.dart';
 import '../../widgets/state_views.dart';
 import '../auth/sign_in_prompt.dart';
+import 'widgets/mentor_reviews_section.dart';
 
 class MentorDetailScreen extends StatefulWidget {
   final String mentorId;
@@ -280,6 +281,11 @@ class _MentorDetailScreenState extends State<MentorDetailScreen> {
                       color: AppColors.textSecondary,
                     ),
                   ),
+                ),
+                SizedBox(height: 22.h),
+                MentorReviewsSection(
+                  mentorId: mentor.id,
+                  mentorName: mentor.firstName,
                 ),
               ],
             ),

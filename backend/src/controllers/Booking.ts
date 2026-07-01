@@ -13,6 +13,8 @@ import {
 } from '../utils/validateFeilds'
 import { catchAsync } from '../utils/catchAsync'
 import { sendMail } from '../utils/mailService'
+import { sendPushToRole, sendPushToUser } from '../utils/pushService'
+import { rewardReferralOnBooking } from '../utils/referral'
 
 export const createBookingController = async (req, res) => {
   try {
@@ -70,6 +72,22 @@ export const createBookingController = async (req, res) => {
     })
 
     await newBooking.save()
+
+    // Notify the booked mentor and all admins (non-blocking — never fail the
+    // booking if push is unconfigured or errors).
+    const bookingId = newBooking._id.toString()
+    const studentName = req.body.studentName as string
+    sendPushToUser(req.body.mentorId, {
+      title: 'New session booking',
+      body: `${studentName} booked a session with you.`,
+      data: { type: 'booking', bookingId },
+    }).catch(err => console.error('[push] mentor notify failed:', err.message))
+    sendPushToRole('ADMIN', {
+      title: 'New session booking',
+      body: `${studentName} placed a new booking.`,
+      data: { type: 'booking', bookingId },
+    }).catch(err => console.error('[push] admin notify failed:', err.message))
+
     res
       .status(201)
       .json({ message: 'Booking created successfully', newBooking })
@@ -95,6 +113,12 @@ export const updateBookingController = async (req, res) => {
     if (!updatedBooking) {
       return res.status(404).json({ message: 'Booking not found' })
     }
+
+    // If this update completed the payment, pay out any pending referral.
+    if (updateData.paymentStatus === 'completed') {
+      await rewardReferralOnBooking(updatedBooking.studentId?.toString())
+    }
+
     res
       .status(200)
       .json({ message: 'Booking updated successfully', updatedBooking })

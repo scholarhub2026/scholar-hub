@@ -55,4 +55,14 @@ import mongoose, { Document} from 'mongoose'
   is_first_login?: boolean
   completed_profile?: boolean
   is_available?:boolean
+
+  // Refer & earn
+  referralCode?: string
+  referredBy?: mongoose.Types.ObjectId
+  referralCount?: number
+  rewardBalance?: number
+  referralRewarded?: boolean
+
+  // Push notifications (FCM device tokens)
+  fcmTokens?: string[]
 }

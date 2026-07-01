@@ -10,6 +10,7 @@ import '../../core/utils/subject_visuals.dart';
 import '../../features/info/info_screen.dart';
 import '../../features/mentors/mentor_detail_screen.dart';
 import '../../features/mentors/mentors_screen.dart';
+import '../../features/referral/refer_screen.dart';
 import '../../features/subjects/subjects_screen.dart';
 
 /// Centralised navigation helpers so screens don't import each other directly.
@@ -39,6 +40,9 @@ class AppNavigator {
 
   static Future<void> toSubjects(BuildContext context) =>
       _push(context, const SubjectsScreen());
+
+  static Future<void> toReferral(BuildContext context) =>
+      _push(context, const ReferScreen());
 
   /// Mentors that teach a given subject (drill-down from the subjects list).
   static Future<void> toSubjectMentors(BuildContext context, String subject) =>

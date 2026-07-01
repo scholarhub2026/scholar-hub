@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -6,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/network/api_client.dart';
 import '../../data/models/app_user.dart';
 import '../../data/services/auth_service.dart';
+import '../../data/services/push_service.dart';
 import 'auth_state.dart';
 
 /// Holds the session: persists the JWT + user, restores it on launch, and
@@ -62,6 +64,11 @@ class AuthCubit extends Cubit<AuthState> {
         emit(const AuthState(status: AuthStatus.unauthenticated));
       }
     }
+
+    // Register this device for push once we know who's signed in.
+    if (state.status == AuthStatus.authenticated && state.user != null) {
+      unawaited(PushService.instance.syncToken(state.user!.id));
+    }
   }
 
   Future<AppUser> login({
@@ -70,6 +77,7 @@ class AuthCubit extends Cubit<AuthState> {
   }) async {
     final result = await _service.login(email: email, password: password);
     await _persist(result.token, result.user);
+    unawaited(PushService.instance.syncToken(result.user.id));
     return result.user;
   }
 
@@ -123,7 +131,11 @@ class AuthCubit extends Cubit<AuthState> {
   }
 
   Future<void> logout() async {
+    final userId = state.user?.id;
     await _clear();
+    if (userId != null && userId.isNotEmpty) {
+      unawaited(PushService.instance.clearToken(userId));
+    }
     emit(const AuthState(status: AuthStatus.unauthenticated));
   }
 

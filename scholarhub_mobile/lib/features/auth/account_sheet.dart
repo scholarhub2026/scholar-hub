@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
+import '../../core/navigation/app_navigator.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../state/auth/auth_cubit.dart';
@@ -81,6 +82,42 @@ class _AccountSheet extends StatelessWidget {
             ],
           ),
           SizedBox(height: 20.h),
+          Material(
+            color: AppColors.primaryLight,
+            borderRadius: BorderRadius.circular(16.r),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16.r),
+              onTap: () {
+                Navigator.pop(context);
+                AppNavigator.toReferral(context);
+              },
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 15.h, horizontal: 16.w),
+                child: Row(
+                  children: [
+                    Icon(LucideIcons.gift, color: AppColors.primary, size: 20.sp),
+                    SizedBox(width: 12.w),
+                    Expanded(
+                      child: Text(
+                        'Refer & Earn',
+                        style: TextStyle(
+                          color: AppColors.primaryDark,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15.sp,
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      LucideIcons.chevronRight,
+                      color: AppColors.primary,
+                      size: 18.sp,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          SizedBox(height: 12.h),
           Material(
             color: AppColors.dangerSoft,
             borderRadius: BorderRadius.circular(16.r),

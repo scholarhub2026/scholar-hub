@@ -16,6 +16,7 @@ import { generateOTP, verifyOTP } from '../utils/generateOTP'
 import { generatePass } from '../utils/generatePassword'
 import Booking from '../models/Booking'
 import { sendMail } from '../utils/mailService'
+import { linkReferrer, generateReferralCode } from '../utils/referral'
 
 export const signupController = catchAsync(async (req: Request, res: Response) => {
   // ✅ Step 1: Validate required fields
@@ -69,8 +70,9 @@ export const signupController = catchAsync(async (req: Request, res: Response) =
     }
   }
 
-  // ✅ Step 6: Generate OTP
+  // ✅ Step 6: Generate OTP + this user's own referral code
   const { otp, otpExpiry } = generateOTP();
+  const referralCode = await generateReferralCode();
 
   // ✅ Step 7: Create and save user
   const user = new AuthModal({
@@ -82,9 +84,13 @@ export const signupController = catchAsync(async (req: Request, res: Response) =
     emailVerificationOTP: await encryptPassword(otp),
     otpExpiry,
     role:role||"STUDENT",
+    referralCode,
   });
 
   const registerUser = await user.save();
+
+  // ✅ Step 7b: Record who referred this user (payout happens on first booking)
+  await linkReferrer(req.body.referralCode, registerUser._id.toString());
 
   // ✅ Step 8: Send OTP email (non-blocking)
   try {
@@ -329,6 +335,45 @@ export const verifyEmailOTPController = catchAsync(
     await user.save()
 
     return res.status(201).json({ message: 'Email verifed successfully' })
+  }
+)
+
+/**
+ * PUT /api/auth/fcm-token/:id  body: { token }
+ * Register a device's FCM token so the user can receive push notifications.
+ */
+export const registerFcmTokenController = catchAsync(
+  async (req: Request, res: Response) => {
+    const { id } = req.params
+    const { token } = req.body || {}
+
+    if (!token) return res.status(400).json({ message: 'Provide the token' })
+
+    const updated = await AuthModal.findByIdAndUpdate(
+      id,
+      { $addToSet: { fcmTokens: token } },
+      { new: true }
+    )
+    if (!updated) return res.status(404).json({ message: 'User not found' })
+
+    return res.status(200).json({ message: 'Device registered for notifications' })
+  }
+)
+
+/**
+ * DELETE /api/auth/fcm-token/:id  body: { token }
+ * Remove a device token (e.g. on logout) so it stops receiving pushes.
+ */
+export const removeFcmTokenController = catchAsync(
+  async (req: Request, res: Response) => {
+    const { id } = req.params
+    const { token } = req.body || {}
+
+    if (!token) return res.status(400).json({ message: 'Provide the token' })
+
+    await AuthModal.findByIdAndUpdate(id, { $pull: { fcmTokens: token } })
+
+    return res.status(200).json({ message: 'Device removed from notifications' })
   }
 )
 

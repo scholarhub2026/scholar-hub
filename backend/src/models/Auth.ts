@@ -137,7 +137,37 @@ const AuthSchema = new Schema<IAuth>(
     is_available:{
       type:Boolean,
       default:true
-    }
+    },
+
+    // Refer & earn
+    referralCode: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
+    referredBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'AuthModal',
+    },
+    referralCount: {
+      type: Number,
+      default: 0,
+    },
+    rewardBalance: {
+      type: Number,
+      default: 0,
+    },
+    // True once this user's first completed booking has paid out their referrer.
+    referralRewarded: {
+      type: Boolean,
+      default: false,
+    },
+
+    // Push notifications — one entry per device the user is logged in on.
+    fcmTokens: {
+      type: [String],
+      default: [],
+    },
   },
 
   { timestamps: true }
