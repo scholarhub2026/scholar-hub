@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const subjects = [
@@ -120,22 +121,25 @@ const Subjects = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {subjects.map((subject, index) => (
             <Link
               key={index}
               to={`/mentors?subject=${subject.name}`}
-              className="group flex flex-col items-center rounded-2xl border border-slate-100 bg-white p-6 text-center shadow-sm transition-all hover:-translate-y-1 hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5"
+              className="group flex items-center gap-4 rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:border-primary/30 hover:shadow-md hover:shadow-primary/5"
             >
               <div
                 className={cn(
-                  "mb-4 flex h-16 w-16 items-center justify-center rounded-2xl transition-transform group-hover:scale-105",
+                  "flex h-11 w-11 shrink-0 items-center justify-center rounded-lg transition-transform group-hover:scale-105",
                   subject.color,
                 )}
               >
                 {subject.icon}
               </div>
-              <h3 className="font-semibold text-slate-800">{subject.name}</h3>
+              <span className="text-[15px] font-semibold text-slate-800 group-hover:text-primary">
+                {subject.name}
+              </span>
+              <ArrowRight className="ml-auto h-4 w-4 shrink-0 text-slate-300 transition-all group-hover:translate-x-0.5 group-hover:text-primary" />
             </Link>
           ))}
         </div>
