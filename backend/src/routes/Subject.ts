@@ -5,12 +5,11 @@ import {
   getSubjects,
   updateSubject,
 } from '../controllers/Subject'
+import { requireAuth, requireRole } from '../middleware/auth'
 
 export const SubjectRouter = Router()
 
-SubjectRouter.post('/:type', createSubject)
-
-SubjectRouter.put('/:id', updateSubject);
-// SubjectRouter.get('/:id', getSubjects)
-SubjectRouter.get('/:type', getSubjects)
-SubjectRouter.delete('/:id', deleteSubject)
+SubjectRouter.get('/:type', getSubjects) // public: used by browse/booking
+SubjectRouter.post('/:type', requireAuth, requireRole('ADMIN'), createSubject)
+SubjectRouter.put('/:id', requireAuth, requireRole('ADMIN'), updateSubject)
+SubjectRouter.delete('/:id', requireAuth, requireRole('ADMIN'), deleteSubject)

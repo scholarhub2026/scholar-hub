@@ -1,11 +1,12 @@
 import DashboardLayout from "../dashboard/DashboardLayout";
-import { store } from "@/contexts/store";
+import { useAuth } from "@/auth/AuthProvider";
+import { roleSlug } from "@/config/roles";
 import { Label } from "../ui/label";
 import { User } from "lucide-react";
 import { Input } from "../ui/input";
 import { ProfileFormData } from "@/types/profilePage";
 import { useForm } from "react-hook-form";
-import Button from "@mui/material/Button";
+import { Button } from "@/components/ui/button";
 import { useUpdateMentorMutation } from "@/api/mentor/update-mentor";
 import { useUpdatePasswordMutation } from "@/api/auth/updatePassword";
 import { useEffect, useState } from "react";
@@ -19,7 +20,9 @@ const UpdatePassword = () => {
     handleSubmit,
   } = useForm<ProfileFormData>();
 
-  const userId = store.getLoggedUser()?.id;
+  const { user } = useAuth();
+  const userId = user?.id;
+  const role = roleSlug(user?.role);
 
   const { mutate: updatePassword } = useUpdatePasswordMutation();
   const { mutate: updateAvailability } = useUpdateMentorMutation();
@@ -59,7 +62,7 @@ const UpdatePassword = () => {
   };
 
   return (
-    <DashboardLayout userRole={store.getUserRole()}>
+    <DashboardLayout userRole={role}>
       <div className="bg-white rounded-2xl shadow-xl p-8">
         <div className="space-y-6">
           <div className="text-center mb-8">
@@ -125,13 +128,11 @@ const UpdatePassword = () => {
 
             {/* Submit Button */}
             <div className="flex justify-center mt-6">
-              <Button type="submit" variant="contained" color="primary">
-                Update Password
-              </Button>
+              <Button type="submit">Update Password</Button>
             </div>
 
             {/* Mentor Availability Toggle */}
-            {store.getUserRole() === "mentor" && (
+            {role === "mentor" && (
               <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200 shadow-sm">
                 <Label className="flex items-center text-sm font-medium text-gray-700">
                   <User className="w-4 h-4 mr-2 text-blue-600" />

@@ -1,10 +1,19 @@
 import { ProfileFormData } from "@/types/profilePage";
-import { TimePicker } from "@mui/x-date-pickers";
 
 import { Plus, Pencil, Trash2, Save } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useFormContext } from "react-hook-form";
 import dayjs from "dayjs";
+
+// Native time <input> replacements for the old MUI TimePicker (Date <-> "HH:mm").
+const toInputValue = (d: Date | null) => (d ? dayjs(d).format("HH:mm") : "");
+const fromInputValue = (v: string): Date | null => {
+  if (!v) return null;
+  const [h, m] = v.split(":").map(Number);
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  return d;
+};
 
 type TimeSlotItem = {
   time: Date | null;
@@ -79,11 +88,11 @@ const TimeSlot = () => {
         {timeSlots.map((slot, index) => (
           <div key={index} className="flex items-center gap-4">
             {slot.isEditing ? (
-              <TimePicker
-                label="Pick time"
-                className="w-full"
-                value={slot.time}
-                onChange={(value) => updateTimeSlotValue(index, value)}
+              <input
+                type="time"
+                className="w-full border px-4 py-2 rounded text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={toInputValue(slot.time)}
+                onChange={(e) => updateTimeSlotValue(index, fromInputValue(e.target.value))}
               />
             ) : (
               <div className="w-full border px-4 py-2 rounded text-gray-700 bg-gray-100">

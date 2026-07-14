@@ -122,6 +122,47 @@ export const getMentors = catchAsync(async (req: Request, res: Response) => {
   })
 })
 
+/**
+ * PUT /api/mentor/:id/availability  body: { available_slot?, is_available? }
+ * Mentor/Admin — update ONLY availability. Dedicated (not `updateMentor`) so a
+ * partial payload can't wipe selected_class / additional_details.
+ */
+export const updateMentorAvailability = catchAsync(
+  async (req: Request, res: Response) => {
+    const { id } = req.params
+    if (!mongooseIdValidator(id)) {
+      return res.status(400).json({ message: 'Invalid Id' })
+    }
+
+    const update: Record<string, any> = {}
+    if (Array.isArray(req.body.available_slot)) {
+      update.available_slot = req.body.available_slot
+    }
+    if (typeof req.body.is_available === 'boolean') {
+      update.is_available = req.body.is_available
+    }
+    if (Object.keys(update).length === 0) {
+      return res
+        .status(400)
+        .json({ message: 'Provide available_slot and/or is_available' })
+    }
+
+    const updated = await AuthModal.findOneAndUpdate(
+      { _id: id, role: 'TUTOR' },
+      { $set: update },
+      { new: true }
+    ).select('available_slot is_available')
+
+    if (!updated) {
+      return res.status(404).json({ message: 'Mentor not found' })
+    }
+
+    return res
+      .status(200)
+      .json({ message: 'Availability updated successfully', data: updated })
+  }
+)
+
 export const updateMentor = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
   const { admin_approve } = req.body;

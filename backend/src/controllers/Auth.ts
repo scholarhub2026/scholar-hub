@@ -5,12 +5,13 @@ import AuthModal from '../models/Auth'
 import {
   comparePassword,
   decodeToken,
+  decodeRefreshToken,
   encryptPassword,
   generateAccessToken,
   generateRefreshToken,
 } from '../helpers/Auth'
 import { iTOKEN_PAYLOAD } from '../types/Auth'
-import { COOKIE_OPTIONS } from '../constants/Auth'
+import { COOKIE_OPTIONS, REFRESH_COOKIE_NAME } from '../constants/Auth'
 import { generateOTP, verifyOTP } from '../utils/generateOTP'
 
 import { generatePass } from '../utils/generatePassword'
@@ -214,6 +215,69 @@ export const refreshTokenController = catchAsync(
     } catch (err) {
       res.status(401).send('Invalid or expired token')
     }
+  }
+)
+
+/**
+ * Read the refresh token from the httpOnly cookie (web) or, as a fallback, the
+ * request body (native clients that store it themselves). No cookie-parser dep —
+ * we parse the single cookie we care about from the header.
+ */
+const getRefreshToken = (req: Request): string | undefined => {
+  const cookieHeader = req.headers.cookie
+  if (cookieHeader) {
+    const match = cookieHeader
+      .split(';')
+      .map((c) => c.trim())
+      .find((c) => c.startsWith(`${REFRESH_COOKIE_NAME}=`))
+    if (match) return decodeURIComponent(match.slice(REFRESH_COOKIE_NAME.length + 1))
+  }
+  if (req.body?.refreshToken) return req.body.refreshToken as string
+  return undefined
+}
+
+/**
+ * POST /api/auth/refresh
+ * Exchange a valid refresh token (httpOnly cookie) for a fresh access token,
+ * rotating the refresh cookie. Public route — the access token is expired by the
+ * time this is called; the cookie is the credential.
+ */
+export const refreshAccessTokenController = catchAsync(
+  async (req: Request, res: Response) => {
+    const token = getRefreshToken(req)
+    if (!token) return res.status(401).json({ message: 'No refresh token provided' })
+
+    let decoded: iTOKEN_PAYLOAD
+    try {
+      decoded = decodeRefreshToken(token)
+    } catch {
+      return res.status(401).json({ message: 'Invalid or expired refresh token' })
+    }
+    if (!decoded?._id) return res.status(401).json({ message: 'Invalid refresh token' })
+
+    const user = await AuthModal.findById(decoded._id)
+    if (!user) return res.status(401).json({ message: 'User not found' })
+    if (!user.isActive) return res.status(403).json({ message: 'Account disabled' })
+
+    const payload: iTOKEN_PAYLOAD = { _id: user.id }
+    const accessToken = generateAccessToken(payload)
+    const refreshToken = generateRefreshToken(payload)
+
+    // Rotate the refresh cookie.
+    res.cookie(REFRESH_COOKIE_NAME, refreshToken, COOKIE_OPTIONS)
+
+    return res.status(200).json({
+      token: accessToken,
+      user: {
+        id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+        completed_profile: user.completed_profile ? user.completed_profile : false,
+        is_first_login: user.is_first_login ? user.is_first_login : false,
+      },
+    })
   }
 )
 

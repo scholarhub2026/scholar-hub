@@ -35,3 +35,10 @@ export const decodeToken = (token: string): iTOKEN_PAYLOAD => {
     process.env.ACCESS_TOKEN_SECRET as string
   ) as iTOKEN_PAYLOAD
 }
+
+export const decodeRefreshToken = (token: string): iTOKEN_PAYLOAD => {
+  return jwt.verify(
+    token,
+    process.env.REFRESH_TOKEN_SECRET as string
+  ) as iTOKEN_PAYLOAD
+}

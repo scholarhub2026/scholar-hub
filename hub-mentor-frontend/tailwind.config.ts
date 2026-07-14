@@ -68,7 +68,18 @@ export default {
 					secondary: '#1E40AF',
 					accent: '#F97316',
 					light: '#EFF6FF',
+				},
+				// Brand palette — aligned with the Flutter mobile app so web + mobile
+				// read as one product. (blue → indigo → violet, orange accent)
+				brand: {
+					blue: '#2563EB',
+					indigo: '#1E40AF',
+					violet: '#7C3AED',
+					orange: '#F97316',
 				}
+			},
+			backgroundImage: {
+				'brand-gradient': 'linear-gradient(135deg, #2563EB 0%, #1E40AF 50%, #7C3AED 100%)',
 			},
 			borderRadius: {
 				lg: 'var(--radius)',

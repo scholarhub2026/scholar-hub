@@ -1,14 +1,10 @@
-import React, { useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import SignUpCard from "@/components/signup/singupCard";
-import { useVerifyTokenQuery } from "@/api/auth/refreshToken";
 import LoginCard from "@/components/signup/loginCard";
-import { store } from "@/contexts/store";
 
-const LoginPage = ({defaultType}:{defaultType:string}) => {
-
+const LoginPage = ({ defaultType }: { defaultType: string }) => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-mentor-light py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full">

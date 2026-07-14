@@ -5,15 +5,15 @@ import {
   getInqueryForm,
   updateInqueryForm,
 } from '../controllers/Inquery-form'
+import { requireAuth, requireRole } from '../middleware/auth'
 
 export const inqueryFormRouter = Router()
 
-inqueryFormRouter.post('/', createInqueryForm)
+inqueryFormRouter.post('/', createInqueryForm) // public: contact/enquiry form
 
-inqueryFormRouter.get('/:id', getInqueryForm)
-inqueryFormRouter.get('/', getInqueryForm)
+inqueryFormRouter.get('/:id', requireAuth, requireRole('ADMIN'), getInqueryForm)
+inqueryFormRouter.get('/', requireAuth, requireRole('ADMIN'), getInqueryForm)
 
+inqueryFormRouter.delete('/:id', requireAuth, requireRole('ADMIN'), deleteInqueryForm)
 
-inqueryFormRouter.delete('/:id', deleteInqueryForm)
-
-inqueryFormRouter.put('/:id', updateInqueryForm)
+inqueryFormRouter.put('/:id', requireAuth, requireRole('ADMIN'), updateInqueryForm)

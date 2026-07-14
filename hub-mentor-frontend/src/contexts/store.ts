@@ -1,38 +1,18 @@
 import { iMODAL_STATE } from "@/types";
 import { proxy } from "valtio";
 
-export type User = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  role: "ADMIN" | "TUTOR" | "STUDENT";
-  completedProfile: boolean;
-  is_first_login?: boolean;
-};
-
+// NOTE: Session/user state has moved to <AuthProvider> (src/auth) as the single
+// source of truth. This store is now ONLY ephemeral UI state (modals + the
+// in-progress booking draft). Do not add auth/user fields back here.
 export const store = proxy({
   isModalOpen: false,
   modalState: "" as iMODAL_STATE,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   modalData: {} as any,
-  loggedUser: {} as User,
-  getLoggedUser: () => {
-    return store.loggedUser;
+  bookingDetails: {
+    mentorId: "",
+    fromDate: "",
+    toDate: "",
+    time: "",
   },
-  getUserRole: (): "student" | "mentor" | "admin" => {
-  if (!store.loggedUser?.role) return "student";
-
-  return store.loggedUser.role === "TUTOR"
-    ? "mentor"
-    : store.loggedUser.role === "ADMIN"
-    ? "admin"
-    : "student";
-},
-bookingDetails:{
-  mentorId: "",
-  fromDate: "",
-  toDate: "",
-  time: ""
-}
 });

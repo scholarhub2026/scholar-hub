@@ -6,6 +6,50 @@ import Auth from '../models/Auth'
 import { generateReferralCode } from '../utils/referral'
 
 /**
+ * GET /api/referral?page=&limit=
+ * Admin — overview of everyone who has referred at least one user, plus totals.
+ */
+export const getReferralOverviewController = catchAsync(
+  async (req: Request, res: Response) => {
+    const page = Number(req.query.page) || 1
+    const limit = Number(req.query.limit) || 10
+    const skip = (page - 1) * limit
+    const filter = { referralCount: { $gt: 0 } }
+
+    const [users, total, totals] = await Promise.all([
+      Auth.find(filter)
+        .select('firstName lastName email referralCode referralCount rewardBalance')
+        .sort({ referralCount: -1 })
+        .skip(skip)
+        .limit(limit),
+      Auth.countDocuments(filter),
+      Auth.aggregate([
+        {
+          $group: {
+            _id: null,
+            totalReferrals: { $sum: '$referralCount' },
+            totalRewards: { $sum: '$rewardBalance' },
+          },
+        },
+      ]),
+    ])
+
+    return res.status(200).json({
+      message: 'Referral overview retrieved successfully',
+      data: users,
+      summary: {
+        totalReferrals: totals[0]?.totalReferrals ?? 0,
+        totalRewards: totals[0]?.totalRewards ?? 0,
+      },
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    })
+  }
+)
+
+/**
  * GET /api/referral/:id
  * Returns the user's own referral code (generated on demand for accounts that
  * predate the feature), how many people they've referred, their reward

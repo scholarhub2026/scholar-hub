@@ -1,26 +1,18 @@
 import React from "react";
 import Sidebar from "./Sidebar";
 import DashboardHeader from "./DashboardHeader";
-
-
-import { useSnapshot } from "valtio";
-import { store } from "@/contexts/store";
+import { useAuth } from "@/auth/AuthProvider";
+import { roleSlug, type RoleSlug } from "@/config/roles";
 
 interface DashboardLayoutProps {
-  userRole?: "student" | "mentor" | "admin"; // made optional
+  /** Optional override; defaults to the authenticated user's role. */
+  userRole?: RoleSlug;
   children: React.ReactNode;
 }
 
-const DashboardLayout: React.FC<DashboardLayoutProps> = ({
-  userRole,
-  children,
-}) => {
- 
-  const finalUserRole = userRole || store.getUserRole();
-
-  const loggedUser = store.getLoggedUser();
-
-
+const DashboardLayout: React.FC<DashboardLayoutProps> = ({ userRole, children }) => {
+  const { user } = useAuth();
+  const finalUserRole: RoleSlug = userRole ?? roleSlug(user?.role);
 
   return (
     <div className="flex h-screen">
@@ -28,10 +20,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         <Sidebar userRole={finalUserRole} />
       </div>
       <div className="flex-1 flex flex-col overflow-hidden">
-        <DashboardHeader
-          userRole={finalUserRole}
-          userName={loggedUser.firstName}
-        />
+        <DashboardHeader userRole={finalUserRole} userName={user?.firstName ?? ""} />
         <main className="flex-1 overflow-auto bg-gray-50 p-6">{children}</main>
       </div>
     </div>

@@ -11,15 +11,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useBookingsQuery } from "@/api/booking/getBookings";
-import { store } from "@/contexts/store";
+import { useAuth } from "@/auth/AuthProvider";
+import { roleSlug } from "@/config/roles";
 import { handleOpenModal } from "@/contexts/modal-state";
 import { useCreatePaymentLinkMutation } from "@/api/booking/create-payment-link";
 import { Button } from "../ui/button";
 import { makePayment } from "@/lib/payment-gateway";
 
 const BookingTable = () => {
-  const studentId = store.getLoggedUser().id;
-  const userType = store.getUserRole();
+  const { user: authUser } = useAuth();
+  const studentId = authUser?.id ?? "";
+  const userType = roleSlug(authUser?.role);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState(search); // 👈 debounced value

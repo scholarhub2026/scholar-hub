@@ -1,18 +1,20 @@
 import {Router } from 'express'
-import { createBookingController, generatePaymentLink, getBookingsForAdmin, updateBookingController } from '../controllers/Booking';
+import { createBookingController, generatePaymentLink, getBookingsForAdmin, getMentorEarningsController, updateBookingController } from '../controllers/Booking';
 import crypto from 'crypto';
 import Booking from '../models/Booking';
 import { rewardReferralOnBooking } from '../utils/referral';
 import { log } from 'console';
+import { requireAuth, requireRole } from '../middleware/auth';
 
 
 export const BookingRouter = Router();
 
 
-BookingRouter.post('/',createBookingController);
-BookingRouter.get('/:studentId',getBookingsForAdmin);
-BookingRouter.put('/:bookingId',updateBookingController);
-BookingRouter.post('/create-payment-link',generatePaymentLink);
+BookingRouter.post('/', requireAuth, requireRole('STUDENT'), createBookingController);
+BookingRouter.get('/mentor/:mentorId/earnings', requireAuth, requireRole('TUTOR','ADMIN'), getMentorEarningsController);
+BookingRouter.get('/:studentId', requireAuth, getBookingsForAdmin); // controller role-filters
+BookingRouter.put('/:bookingId', requireAuth, updateBookingController);
+BookingRouter.post('/create-payment-link', requireAuth, requireRole('STUDENT'), generatePaymentLink);
 
 
 BookingRouter.post('/razorpay/webhook',async(req,res)=>{

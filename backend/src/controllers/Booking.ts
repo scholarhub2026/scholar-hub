@@ -1,4 +1,4 @@
-import { FilterQuery } from 'mongoose'
+import mongoose, { FilterQuery } from 'mongoose'
 
 import { encryptPassword } from '../helpers/Auth'
 import Auth from '../models/Auth'
@@ -206,6 +206,61 @@ export const getBookingsForAdmin = async (req, res) => {
     return res.status(500).json({ message: error.message })
   }
 }
+
+/**
+ * GET /api/booking/mentor/:mentorId/earnings
+ * Mentor/Admin — aggregate a mentor's paid earnings (B3). Replaces the
+ * client-side derivation the mobile app does today.
+ */
+export const getMentorEarningsController = catchAsync(async (req, res) => {
+  const { mentorId } = req.params
+  if (!mongooseIdValidator(mentorId)) {
+    return res.status(400).json({ message: 'Invalid mentorId' })
+  }
+
+  const mid = new mongoose.Types.ObjectId(mentorId)
+  const now = new Date()
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const sumGroup = { _id: null, total: { $sum: '$totalAmount' }, sessions: { $sum: 1 } }
+
+  const [completed, monthly, pending, recent] = await Promise.all([
+    Booking.aggregate([
+      { $match: { mentorId: mid, paymentStatus: 'completed' } },
+      { $group: sumGroup },
+    ]),
+    Booking.aggregate([
+      {
+        $match: {
+          mentorId: mid,
+          paymentStatus: 'completed',
+          createdAt: { $gte: monthStart },
+        },
+      },
+      { $group: sumGroup },
+    ]),
+    Booking.aggregate([
+      { $match: { mentorId: mid, paymentStatus: 'pending' } },
+      { $group: sumGroup },
+    ]),
+    Booking.find({ mentorId: mid, paymentStatus: 'completed' })
+      .select('studentName totalAmount createdAt sessionMode bookingType')
+      .sort({ createdAt: -1 })
+      .limit(10),
+  ])
+
+  return res.status(200).json({
+    message: 'Earnings retrieved successfully',
+    data: {
+      totalEarnings: completed[0]?.total ?? 0,
+      totalSessions: completed[0]?.sessions ?? 0,
+      thisMonthEarnings: monthly[0]?.total ?? 0,
+      thisMonthSessions: monthly[0]?.sessions ?? 0,
+      pendingEarnings: pending[0]?.total ?? 0,
+      pendingSessions: pending[0]?.sessions ?? 0,
+      recent,
+    },
+  })
+})
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,

@@ -10,9 +10,12 @@ import RenderPaymentDetails from "@/components/profile-page/RengerPaymentDetails
 import RenderSubjectDetails from "@/components/profile-page/RenderSubjectDetails";
 import { set } from "date-fns";
 import { useUpdateMentorMutation } from "@/api/mentor/update-mentor";
-import { store } from "@/contexts/store";
+import { useAuth } from "@/auth/AuthProvider";
+import { roleSlug } from "@/config/roles";
 
 const ProfilePage = () => {
+  const { user } = useAuth();
+  const role = roleSlug(user?.role);
   const methods = useForm({
     mode: "onSubmit",
   });
@@ -119,7 +122,7 @@ const ProfilePage = () => {
   };
 
   return (
-    <DashboardLayout userRole={store.getUserRole()}>
+    <DashboardLayout userRole={role}>
       <div className="bg-white rounded-2xl shadow-xl p-8">
         {/* Progress Bar */}
         <div className="mb-8">

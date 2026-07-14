@@ -11,6 +11,7 @@ import { BookingLogRouter } from './BookingLog'
 import { ReviewRouter } from './Review'
 import { ReferralRouter } from './Referral'
 import { AdRouter } from './Ad'
+import { UserRouter } from './User'
 import upload from '../utils/multer'
 import { uploadMedia } from '../controllers/Media'
 
@@ -31,6 +32,7 @@ routers.use('/api/bookingLog',BookingLogRouter);
 routers.use('/api/review',ReviewRouter);
 routers.use('/api/referral',ReferralRouter);
 routers.use('/api/ads',AdRouter);
+routers.use('/api/users',UserRouter);
 routers.use('/api/media',upload.single('image'),uploadMedia);
 
 export default routers

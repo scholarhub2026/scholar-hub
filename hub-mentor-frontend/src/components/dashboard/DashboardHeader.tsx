@@ -1,5 +1,5 @@
-import React from 'react';
-import { Button } from '@/components/ui/button';
+import React from "react";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -7,43 +7,40 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Link, useNavigate } from 'react-router-dom';
-import { toast } from '@/hooks/use-toast';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { MenuIcon } from 'lucide-react';
-import Sidebar from './Sidebar';
-import { store } from '@/contexts/store';
-import { snapshot } from 'valtio';
+} from "@/components/ui/dropdown-menu";
+import { Link, useNavigate } from "react-router-dom";
+import { toast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Bell, MenuIcon } from "lucide-react";
+import Sidebar from "./Sidebar";
+import { useAuth } from "@/auth/AuthProvider";
+import { roleBase, type RoleSlug } from "@/config/roles";
 
 interface DashboardHeaderProps {
-  userRole: 'student' | 'parent' | 'mentor' | 'admin';
+  userRole: RoleSlug;
   userName: string;
 }
 
 const DashboardHeader: React.FC<DashboardHeaderProps> = ({ userRole, userName }) => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const finalUserRole = userRole || store.getUserRole();
-   const snap = snapshot(store);
+  const { user, logout } = useAuth();
+
+  const base = roleBase(userRole);
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-
+    logout();
     toast({
-      title: 'Logged out successfully',
-      description: 'You have been logged out.',
+      title: "Logged out successfully",
+      description: "You have been logged out.",
     });
-
-    navigate('/login');
+    navigate("/login");
   };
 
   return (
     <header className="border-b bg-white">
       <div className="h-16 px-4 flex items-center justify-between">
-
         {/* Mobile Sidebar Toggle */}
         {isMobile && (
           <Sheet>
@@ -54,34 +51,19 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({ userRole, userName })
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="p-0 w-64">
-              <Sidebar userRole={finalUserRole} />
+              <Sidebar userRole={userRole} />
             </SheetContent>
           </Sheet>
         )}
 
-        {/* Title */}
         <h1 className="text-xl font-semibold">Dashboard</h1>
 
-        {/* Right Section */}
         <div className="flex items-center">
-
-          {/* Notifications */}
           <Button variant="ghost" size="icon" className="relative mr-2">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-              className="h-5 w-5"
-            >
-              <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-              <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-            </svg>
-            <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500"></span>
+            <Bell className="h-5 w-5" />
+            <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500" />
           </Button>
 
-          {/* Profile Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="default" className="h-9 w-9 p-0 rounded-full">
@@ -99,29 +81,23 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({ userRole, userName })
 
               <DropdownMenuSeparator />
 
-              <DropdownMenuItem asChild>
-                <Link to={`/dashboard/profile/${snap.loggedUser?.id}`}>Profile</Link>
-              </DropdownMenuItem>
-
-              <DropdownMenuItem asChild>
-                <Link to="/dashboard/settings">Settings</Link>
-              </DropdownMenuItem>
-
-              {finalUserRole === 'admin' && (
+              {user?.id && (
                 <DropdownMenuItem asChild>
-                  <Link to="/dashboard/admin-settings">Admin Controls</Link>
+                  <Link to={`${base}/profile/${user.id}`}>Profile</Link>
                 </DropdownMenuItem>
               )}
+
+              <DropdownMenuItem asChild>
+                <Link to={`${base}/settings`}>Settings</Link>
+              </DropdownMenuItem>
 
               <DropdownMenuSeparator />
 
               <DropdownMenuItem onClick={handleLogout} className="text-red-500">
                 Log out
               </DropdownMenuItem>
-
             </DropdownMenuContent>
           </DropdownMenu>
-
         </div>
       </div>
     </header>

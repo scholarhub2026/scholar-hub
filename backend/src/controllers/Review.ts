@@ -94,6 +94,65 @@ export const createReviewController = catchAsync(
 )
 
 /**
+ * GET /api/review?page=&limit=&search=
+ * Admin — every review across all mentors (for moderation), newest first.
+ */
+export const getAllReviewsController = catchAsync(
+  async (req: Request, res: Response) => {
+    const page = Number(req.query.page) || 1
+    const limit = Number(req.query.limit) || 10
+    const search = req.query.search ? String(req.query.search) : ''
+
+    const filter: Record<string, unknown> = {}
+    if (search) {
+      const rx = new RegExp(search, 'i')
+      filter.$or = [{ studentName: rx }, { comment: rx }]
+    }
+
+    const skip = (page - 1) * limit
+    const [reviews, total] = await Promise.all([
+      Review.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate('mentorId', 'firstName lastName'),
+      Review.countDocuments(filter),
+    ])
+
+    return res.status(200).json({
+      message: 'Reviews retrieved successfully',
+      data: reviews,
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    })
+  }
+)
+
+/**
+ * DELETE /api/review/:id
+ * Admin — remove a review, then recompute the mentor's average rating.
+ */
+export const deleteReviewController = catchAsync(
+  async (req: Request, res: Response) => {
+    const { id } = req.params
+    if (!mongooseIdValidator(id)) {
+      return res.status(400).json({ message: 'Invalid review id' })
+    }
+
+    const review = await Review.findByIdAndDelete(id)
+    if (!review) {
+      return res.status(404).json({ message: 'Review not found' })
+    }
+
+    await recomputeMentorRating(review.mentorId)
+
+    return res.status(200).json({ message: 'Review deleted successfully' })
+  }
+)
+
+/**
  * GET /api/review/mentor/:mentorId?page=&limit=
  * Public list of a mentor's reviews with the aggregate average + count.
  */
