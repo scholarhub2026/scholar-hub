@@ -5,9 +5,10 @@ import StatusBadge from "@/components/shared/StatusBadge";
 import DataTable from "@/components/reusable/DataTable";
 import Swal from "sweetalert2";
 
-import { BadgeCheck, Eye } from "lucide-react";
+import { BadgeCheck, Eye, Trash2 } from "lucide-react";
 import React, { useState } from "react";
 import { useUpdateMentorMutation } from "@/api/mentor/update-mentor";
+import { useDeleteMentorMutation } from "@/api/mentor/delete-mentor";
 import { handleOpenModal } from "@/contexts/modal-state";
 import { Button } from "@/components/ui/button";
 
@@ -35,6 +36,26 @@ const MentorDetails = () => {
   ];
 
   const {mutate}=useUpdateMentorMutation()
+  const { mutate: deleteMentor } = useDeleteMentorMutation();
+
+  /** Confirm + delete. Used as "Reject" for applications, "Remove" for approved. */
+  const handleRemoveMentor = (item, isPending: boolean) => {
+    Swal.fire({
+      title: isPending ? "Reject this application?" : "Remove this mentor?",
+      text: isPending
+        ? `${item?.firstName || "This applicant"}'s application and account will be permanently deleted.`
+        : `${item?.firstName || "This mentor"} will be permanently removed and can no longer log in. Past bookings keep their records.`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#dc2626",
+      cancelButtonColor: "#64748b",
+      confirmButtonText: isPending ? "Yes, reject" : "Yes, remove",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        deleteMentor(item._id);
+      }
+    });
+  };
 
  const handlePromoteAdmin = (item) => {
   const data = {
@@ -122,6 +143,15 @@ const MentorDetails = () => {
               <BadgeCheck className="mr-1.5 h-4 w-4" />
               Approve
             </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-red-500 hover:bg-red-50 hover:text-red-600"
+              onClick={() => handleRemoveMentor(item, true)}
+            >
+              <Trash2 className="mr-1.5 h-4 w-4" />
+              Reject
+            </Button>
           </div>
         )}
         pagination={{
@@ -141,15 +171,26 @@ const MentorDetails = () => {
         onEdit={(item) => console.log("Edit", item)}
         // onDelete={(item) => console.log("Delete", item)}
         renderActions={(item) => (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-slate-500 hover:text-primary"
-            onClick={() => handleOpenModal("mentorProfile", item)}
-          >
-            <Eye className="mr-1.5 h-4 w-4" />
-            View
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-slate-500 hover:text-primary"
+              onClick={() => handleOpenModal("mentorProfile", item)}
+            >
+              <Eye className="mr-1.5 h-4 w-4" />
+              View
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-red-500 hover:bg-red-50 hover:text-red-600"
+              onClick={() => handleRemoveMentor(item, false)}
+            >
+              <Trash2 className="mr-1.5 h-4 w-4" />
+              Remove
+            </Button>
+          </div>
         )}
         pagination={{
           currentPage: page,

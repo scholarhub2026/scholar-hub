@@ -123,6 +123,27 @@ export const getMentors = catchAsync(async (req: Request, res: Response) => {
 })
 
 /**
+ * DELETE /api/mentor/:id
+ * Admin — permanently remove a mentor account (pending application OR approved
+ * mentor). Past bookings/reviews keep their records; their mentor reference
+ * simply stops resolving.
+ */
+export const deleteMentor = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params
+  if (!mongooseIdValidator(id)) {
+    return res.status(400).json({ message: 'Invalid Id' })
+  }
+
+  // Scoped to TUTOR so this endpoint can never delete an admin/student.
+  const deleted = await AuthModal.findOneAndDelete({ _id: id, role: 'TUTOR' })
+  if (!deleted) {
+    return res.status(404).json({ message: 'Mentor not found' })
+  }
+
+  return res.status(200).json({ message: 'Mentor removed successfully' })
+})
+
+/**
  * PUT /api/mentor/:id/availability  body: { available_slot?, is_available? }
  * Mentor/Admin — update ONLY availability. Dedicated (not `updateMentor`) so a
  * partial payload can't wipe selected_class / additional_details.
