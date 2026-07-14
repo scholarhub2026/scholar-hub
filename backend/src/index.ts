@@ -19,7 +19,9 @@ const allowedOrigins = (
   process.env.CORS_ORIGINS || 'http://localhost:8080,http://localhost:5173'
 )
   .split(',')
-  .map((o) => o.trim())
+  // trim + drop any trailing slash so "https://site/" matches the browser's
+  // slash-less Origin header.
+  .map((o) => o.trim().replace(/\/+$/, ''))
   .filter(Boolean)
 
 app.use(
