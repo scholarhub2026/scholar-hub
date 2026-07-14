@@ -1,6 +1,7 @@
 import DashboardLayout from "../dashboard/DashboardLayout";
 import { useAuth } from "@/auth/AuthProvider";
 import { roleSlug } from "@/config/roles";
+import PageHeader from "@/components/shared/PageHeader";
 import { Label } from "../ui/label";
 import { User } from "lucide-react";
 import { Input } from "../ui/input";
@@ -63,11 +64,21 @@ const UpdatePassword = () => {
 
   return (
     <DashboardLayout userRole={role}>
-      <div className="bg-white rounded-2xl shadow-xl p-8">
+      <PageHeader
+        title="Settings"
+        description="Manage your account security and availability."
+      />
+
+      <div className="max-w-2xl rounded-xl border border-slate-200/80 bg-white p-6 shadow-sm md:p-8">
         <div className="space-y-6">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">Update Profile</h2>
-            <p className="text-gray-600">Join our learning community</p>
+          <div>
+            <h2 className="font-display text-lg font-bold text-slate-900">
+              Change password
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Use at least 8 characters with an uppercase letter, a number, and a
+              special character.
+            </p>
           </div>
 
           <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
@@ -127,23 +138,26 @@ const UpdatePassword = () => {
             </div>
 
             {/* Submit Button */}
-            <div className="flex justify-center mt-6">
+            <div className="flex justify-end">
               <Button type="submit">Update Password</Button>
             </div>
 
             {/* Mentor Availability Toggle */}
             {role === "mentor" && (
-              <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200 shadow-sm">
-                <Label className="flex items-center text-sm font-medium text-gray-700">
-                  <User className="w-4 h-4 mr-2 text-blue-600" />
-                  Available
-                </Label>
-
+              <div className="flex items-center justify-between rounded-xl border border-slate-200/80 bg-slate-50 p-4">
+                <div>
+                  <Label className="text-sm font-semibold text-slate-800">
+                    Accepting bookings
+                  </Label>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    When off, students can't book new sessions with you.
+                  </p>
+                </div>
                 <input
                   type="checkbox"
                   checked={isAvailable}
                   onChange={handleCheckboxChange}
-                  className="h-5 w-5 accent-blue-600 cursor-pointer transition-transform duration-200 hover:scale-110"
+                  className="h-5 w-5 cursor-pointer accent-primary"
                 />
               </div>
             )}

@@ -1,5 +1,7 @@
 import { useGetMentorQuery } from "@/api/mentor/get-mentor";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import PageHeader from "@/components/shared/PageHeader";
+import StatusBadge from "@/components/shared/StatusBadge";
 import DataTable from "@/components/reusable/DataTable";
 import Swal from "sweetalert2";
 
@@ -27,11 +29,7 @@ const MentorDetails = () => {
     {
       key: "isActive",
       label: "Status",
-      render: (item) => (
-        <span className={item.isActive ? "text-green-600" : "text-red-600"}>
-          {item.isActive ? "Active" : "Inactive"}
-        </span>
-      ),
+      render: (item) => <StatusBadge status={item.isActive ? "active" : "inactive"} />,
     },
   ];
 
@@ -93,9 +91,14 @@ const MentorDetails = () => {
   
   return (
     <DashboardLayout userRole="admin">
-     
-        <h2 className="text-2xl font-semibold text-gray-800">Unapproved Mentors</h2>
-     
+      <PageHeader
+        title="Mentors"
+        description="Review mentor applications and manage approved mentors."
+      />
+
+      <h2 className="mb-3 font-display text-lg font-bold text-slate-900">
+        Pending approval
+      </h2>
       <DataTable
         columns={columns}
         data={MentorData?.data || []}
@@ -122,10 +125,9 @@ const MentorDetails = () => {
           onPageChange: setPage,
         }}
       />
-      <div>
-        
-      </div>
-      <h2 className="text-2xl font-semibold text-gray-800">Approved Mentors</h2>
+      <h2 className="mb-3 mt-8 font-display text-lg font-bold text-slate-900">
+        Approved mentors
+      </h2>
       <DataTable
         columns={columns}
         data={approvedMentorData?.data || []}

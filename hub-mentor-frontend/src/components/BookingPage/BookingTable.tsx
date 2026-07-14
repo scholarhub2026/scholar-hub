@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Pencil, ReceiptIndianRupee } from "lucide-react";
+import { Pencil, Link2, CalendarX, Search } from "lucide-react";
 import DashboardLayout from "../dashboard/DashboardLayout";
 import PaginationControl from "../ui/PaginationController";
 import {
@@ -16,7 +16,17 @@ import { roleSlug } from "@/config/roles";
 import { handleOpenModal } from "@/contexts/modal-state";
 import { useCreatePaymentLinkMutation } from "@/api/booking/create-payment-link";
 import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Skeleton } from "../ui/skeleton";
 import { makePayment } from "@/lib/payment-gateway";
+import PageHeader from "@/components/shared/PageHeader";
+import StatusBadge from "@/components/shared/StatusBadge";
+
+const HEAD = "px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500";
+
+const PAYMENT_LABEL: Record<string, string> = {
+  completed: "paid",
+};
 
 const BookingTable = () => {
   const { user: authUser } = useAuth();
@@ -24,7 +34,7 @@ const BookingTable = () => {
   const userType = roleSlug(authUser?.role);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState(search); // 👈 debounced value
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
   const limit = 5;
 
   const user = {
@@ -33,16 +43,12 @@ const BookingTable = () => {
     isAdmin: userType === "admin",
   };
 
-  // 🕒 Debounce logic (wait 500ms after typing stops)
+  // Debounce search (500ms after typing stops)
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(search);
-    }, 500); // Adjust delay as needed
-
+    const timer = setTimeout(() => setDebouncedSearch(search), 500);
     return () => clearTimeout(timer);
   }, [search]);
 
-  // 🔥 Fetch only when debouncedSearch changes
   const { data, isLoading, isError, error } = useBookingsQuery({
     studentId,
     page,
@@ -69,179 +75,200 @@ const BookingTable = () => {
     });
   };
 
-  console.log(bookings);
+  const title = user.isMentor ? "Schedule" : user.isStudent ? "My Bookings" : "Bookings";
 
   return (
     <DashboardLayout>
-      <div className="bg-white p-6 rounded-xl shadow-md overflow-auto">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Bookings</h2>
+      <PageHeader
+        title={title}
+        description={
+          user.isAdmin
+            ? "All bookings across the platform."
+            : user.isMentor
+              ? "Your confirmed sessions."
+              : "Your session bookings and payments."
+        }
+        action={
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Input
+              type="text"
+              placeholder="Search student or mentor…"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              className="w-64 pl-9"
+            />
+          </div>
+        }
+      />
 
-          {/* 🔍 Search box */}
-          <input
-            type="text"
-            placeholder="Search by student or mentor..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1); // reset to first page when searching
-            }}
-            className="border border-gray-300 rounded-md px-3 py-2 w-64"
-          />
-        </div>
-
-        {/* Table Content */}
+      <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm">
         {isLoading ? (
-          <p className="text-gray-500">Loading...</p>
+          <div className="space-y-3 p-6">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+          </div>
         ) : isError ? (
-          <p className="text-red-600">Error: {error?.message}</p>
+          <div className="p-8 text-center text-red-500">Error: {error?.message}</div>
         ) : bookings.length === 0 ? (
-          <p className="text-gray-500">No bookings found.</p>
+          <div className="flex flex-col items-center gap-2 py-14 text-slate-400">
+            <CalendarX className="h-8 w-8" />
+            <p className="text-sm">No bookings found.</p>
+          </div>
         ) : (
           <>
-            <Table className="min-w-full divide-y divide-gray-200">
-              <TableHeader className="bg-gray-100">
-                <TableRow className="text-center">
-                  <TableHead>#</TableHead>
-                  <TableHead>Student</TableHead>
-                  <TableHead>Mentor</TableHead>
-                  <TableHead>
-                    {user.isStudent || user.isMentor ? "Amount" : "Phone"}
-                  </TableHead>
-                  <TableHead>Created At</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Payment</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-
-              <TableBody>
-                {bookings.map((booking, i) => (
-                  <TableRow
-                    className="text-center"
-                    key={booking._id}
-                    // onClick={() => handleEdit(booking)}
-                  >
-                    <TableCell>{(page - 1) * limit + i + 1}</TableCell>
-                    <TableCell className="capitalize">
-                      {booking.studentName || "—"}
-                    </TableCell>
-                    <TableCell>{booking.mentorId?.firstName || "—"}</TableCell>
-                    <TableCell>
-                      {user.isStudent || user.isMentor ? (
-                        <span className="font-medium">
-                          ₹ {booking.totalAmount || "0"}
-                        </span>
-                      ) : (
-                        <a
-                          href={`https://wa.me/${booking.phone}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline"
-                        >
-                          {booking.phone}
-                        </a>
-                      )}
-                    </TableCell>
-
-                    <TableCell>
-                      {new Date(booking.createdAt).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      <span
-                        className={`${
-                          booking.bookingStatus === "completed"
-                            ? "text-green-600"
-                            : booking.bookingStatus === "cancelled"
-                            ? "text-red-600"
-                            : "text-yellow-600"
-                        } font-medium capitalize`}
-                      >
-                        {booking.bookingStatus}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      {(() => {
-                        const status = booking?.paymentStatus?.toLowerCase();
-
-                        if (!status || status === "pending") {
-                          return (
-                            <span className="text-yellow-600 font-medium">
-                              Pending
-                            </span>
-                          );
-                        }
-
-                        switch (status) {
-                          case "completed":
-                            return (
-                              <span className="text-green-600 font-medium">
-                                Paid
-                              </span>
-                            );
-                          case "failed":
-                            return (
-                              <span className="text-red-600 font-medium">
-                                Failed
-                              </span>
-                            );
-                          default:
-                            return (
-                              <span className="text-gray-600 capitalize">
-                                {booking.paymentStatus || "Unknown"}
-                              </span>
-                            );
-                        }
-                      })()}
-                    </TableCell>
-
-                    <TableCell className="text-right space-x-2">
-                      {user.isAdmin && (
-                        <>
-                          <button
-                            onClick={() => handleEdit(booking)}
-                            className="text-blue-600 hover:text-blue-800"
-                            title="Edit"
-                          >
-                            <Pencil className="w-4 h-4 inline" />
-                          </button>
-                          <button
-                            onClick={() => createPaymentLink(booking)}
-                            className="text-blue-600 hover:text-blue-800"
-                            title="Create Payment Link"
-                          >
-                            Create Payment Link
-                          </button>
-                        </>
-                      )}
-                      {user.isStudent &&
-                         <Button disabled={booking.paymentStatus?.toLowerCase() ===
-                          "paid"} onClick={()=>makePayment({
-                            totalAmount:booking.totalAmount,
-                            orderId:booking._id,
-                            studentName:booking?.studentName,
-                            email:booking.email,
-                            contact:booking.phone
-
-                          })}>Make Payment</Button>}
-
-                      {user.isMentor && <div className="flex  justify-end gap-3">
-                        <Button onClick={()=>handleOpenModal('student-log',{
-                          type:"log",
-                          id:booking._id
-                        })}>View Logs</Button>
-                        <Button onClick={()=>handleOpenModal('student-log',{
-                          type:"view",
-                          id:booking._id
-                        })}>Make Log</Button></div>}
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table className="min-w-full">
+                <TableHeader>
+                  <TableRow className="border-slate-100 bg-slate-50/80 hover:bg-slate-50/80">
+                    <TableHead className={HEAD}>#</TableHead>
+                    <TableHead className={HEAD}>Student</TableHead>
+                    <TableHead className={HEAD}>Mentor</TableHead>
+                    <TableHead className={HEAD}>
+                      {user.isStudent || user.isMentor ? "Amount" : "Phone"}
+                    </TableHead>
+                    <TableHead className={HEAD}>Date</TableHead>
+                    <TableHead className={HEAD}>Status</TableHead>
+                    <TableHead className={HEAD}>Payment</TableHead>
+                    <TableHead className={`${HEAD} text-right`}>Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
 
-            {/* Pagination */}
-            <div className="mt-4">
+                <TableBody>
+                  {bookings.map((booking, i) => (
+                    <TableRow
+                      key={booking._id}
+                      className="border-slate-100 transition-colors hover:bg-slate-50/60"
+                    >
+                      <TableCell className="px-4 text-slate-400">
+                        {(page - 1) * limit + i + 1}
+                      </TableCell>
+                      <TableCell className="px-4 font-medium capitalize text-slate-800">
+                        {booking.studentName || "—"}
+                      </TableCell>
+                      <TableCell className="px-4 capitalize text-slate-600">
+                        {booking.mentorId?.firstName || "—"}
+                      </TableCell>
+                      <TableCell className="px-4">
+                        {user.isStudent || user.isMentor ? (
+                          <span className="font-semibold text-slate-800">
+                            ₹{booking.totalAmount || "0"}
+                          </span>
+                        ) : (
+                          <a
+                            href={`https://wa.me/${booking.phone}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline"
+                          >
+                            {booking.phone}
+                          </a>
+                        )}
+                      </TableCell>
+                      <TableCell className="px-4 text-slate-600">
+                        {new Date(booking.createdAt).toLocaleDateString("en-IN", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </TableCell>
+                      <TableCell className="px-4">
+                        <StatusBadge status={booking.bookingStatus} />
+                      </TableCell>
+                      <TableCell className="px-4">
+                        <StatusBadge
+                          status={
+                            PAYMENT_LABEL[booking.paymentStatus?.toLowerCase()] ??
+                            (booking.paymentStatus || "pending")
+                          }
+                        />
+                      </TableCell>
+
+                      <TableCell className="px-4 text-right">
+                        {user.isAdmin && (
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-slate-500 hover:text-primary"
+                              onClick={() => handleEdit(booking)}
+                            >
+                              <Pencil className="mr-1.5 h-4 w-4" />
+                              Edit
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-slate-500 hover:text-primary"
+                              onClick={() => createPaymentLink(booking)}
+                              title="Send a Razorpay payment link"
+                            >
+                              <Link2 className="mr-1.5 h-4 w-4" />
+                              Payment Link
+                            </Button>
+                          </div>
+                        )}
+
+                        {user.isStudent && (
+                          <Button
+                            size="sm"
+                            disabled={
+                              booking.paymentStatus?.toLowerCase() === "completed" ||
+                              booking.paymentStatus?.toLowerCase() === "paid"
+                            }
+                            onClick={() =>
+                              makePayment({
+                                totalAmount: booking.totalAmount,
+                                orderId: booking._id,
+                                studentName: booking?.studentName,
+                                email: booking.email,
+                                contact: booking.phone,
+                              })
+                            }
+                          >
+                            Make Payment
+                          </Button>
+                        )}
+
+                        {user.isMentor && (
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                handleOpenModal("student-log", {
+                                  type: "log",
+                                  id: booking._id,
+                                })
+                              }
+                            >
+                              View Logs
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() =>
+                                handleOpenModal("student-log", {
+                                  type: "view",
+                                  id: booking._id,
+                                })
+                              }
+                            >
+                              Make Log
+                            </Button>
+                          </div>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            <div className="border-t border-slate-100 px-4">
               <PaginationControl
                 currentPage={page}
                 totalPages={totalPages}

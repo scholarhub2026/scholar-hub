@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import DashboardLayout from "../dashboard/DashboardLayout";
 import {
   Table,
@@ -9,15 +9,19 @@ import {
   TableRow,
 } from "../ui/table";
 import { Button } from "../ui/button";
-import { Pencil, Trash2, Loader2 } from "lucide-react";
+import { Pencil, Inbox } from "lucide-react";
 import { useGetInqueryQuery } from "@/api/form-query/get-inquery";
 import PaginationControl from "../ui/PaginationController";
 import { handleOpenModal } from "@/contexts/modal-state";
+import { Skeleton } from "../ui/skeleton";
+import PageHeader from "@/components/shared/PageHeader";
+import StatusBadge from "@/components/shared/StatusBadge";
+
+const HEAD = "px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500";
 
 const InqueryPage = () => {
   const [page, setPage] = useState(1);
   const limit = 5;
-  
 
   const { data, isLoading, isError, error, isSuccess } = useGetInqueryQuery({
     page,
@@ -26,109 +30,92 @@ const InqueryPage = () => {
 
   const total = data?.total || 0;
   const totalPages = Math.ceil(total / limit);
-  
 
   return (
-    <DashboardLayout userRole={"admin"}>
-      <div className="p-6">
-        <div className="mb-6">
-          <h2 className="text-2xl font-semibold text-gray-800">Inquiries</h2>
-          <p className="text-sm text-gray-500">
-            View and manage customer inquiries
-          </p>
-        </div>
+    <DashboardLayout userRole="admin">
+      <PageHeader
+        title="Enquiries"
+        description="View and manage incoming student enquiries."
+      />
 
-        <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
-          {isLoading && (
-            <div className="flex items-center justify-center p-10">
-              <Loader2 className="animate-spin w-6 h-6 text-gray-600" />
-              <span className="ml-2 text-gray-600">Loading inquiries...</span>
-            </div>
-          )}
-
-          {isError && (
-            <div className="p-6 text-red-600 text-center">
-              Error loading inquiries: {error?.message || "Unknown error"}
-            </div>
-          )}
-
-          {isSuccess && data?.data?.length === 0 && (
-            <div className="p-6 text-gray-500 text-center">
-              No inquiries found.
-            </div>
-          )}
-
-          {isSuccess && data?.data?.length > 0 && (
-            <>
-              <Table className="min-w-full divide-y divide-gray-200">
-                <TableHeader className="bg-gray-100">
-                  <TableRow>
-                    <TableHead className="px-4 py-3">#</TableHead>
-                    <TableHead className="px-4 py-3">Student Name</TableHead>
-                    <TableHead className="px-4 py-3">Subject</TableHead>
-                    <TableHead className="px-4 py-3">Phone Number</TableHead>
-                    <TableHead className="px-4 py-3">Status</TableHead>
-                    <TableHead className="px-4 py-3 text-right">
-                      Actions
-                    </TableHead>
+      <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm">
+        {isLoading ? (
+          <div className="space-y-3 p-6">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+          </div>
+        ) : isError ? (
+          <div className="p-8 text-center text-red-500">
+            Error loading enquiries: {error?.message || "Unknown error"}
+          </div>
+        ) : isSuccess && (data?.data?.length ?? 0) === 0 ? (
+          <div className="flex flex-col items-center gap-2 py-14 text-slate-400">
+            <Inbox className="h-8 w-8" />
+            <p className="text-sm">No enquiries found.</p>
+          </div>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <Table className="min-w-full">
+                <TableHeader>
+                  <TableRow className="border-slate-100 bg-slate-50/80 hover:bg-slate-50/80">
+                    <TableHead className={HEAD}>#</TableHead>
+                    <TableHead className={HEAD}>Student</TableHead>
+                    <TableHead className={HEAD}>Subject</TableHead>
+                    <TableHead className={HEAD}>Phone</TableHead>
+                    <TableHead className={HEAD}>Status</TableHead>
+                    <TableHead className={`${HEAD} text-right`}>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
 
-                <TableBody className="bg-white divide-y divide-gray-100">
+                <TableBody>
                   {data.data.map((inquiry, index) => (
-                    <TableRow key={inquiry._id} className="hover:bg-gray-50">
-                      <TableCell className="px-4 py-3">
+                    <TableRow
+                      key={inquiry._id}
+                      className="border-slate-100 transition-colors hover:bg-slate-50/60"
+                    >
+                      <TableCell className="px-4 text-slate-400">
                         {(page - 1) * limit + index + 1}
                       </TableCell>
-                      <TableCell className="px-4 py-3">
-                        {inquiry.name || "N/A"}
+                      <TableCell className="px-4 font-medium capitalize text-slate-800">
+                        {inquiry.name || "—"}
                       </TableCell>
-                      <TableCell className="px-4 py-3 truncate max-w-[150px]">
-                        {inquiry.subject || "N/A"}
+                      <TableCell className="max-w-[180px] truncate px-4 text-slate-600">
+                        {inquiry.subject || "—"}
                       </TableCell>
-                      <TableCell className="px-4 py-3">
-                        {inquiry.phoneNumber || "N/A"}
+                      <TableCell className="px-4 text-slate-600">
+                        {inquiry.phoneNumber || "—"}
                       </TableCell>
-                      <TableCell className="px-4 py-3">
-                        <span
-                          className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${
-                            inquiry.status === "PENDING"
-                              ? "bg-red-100 text-red-700"
-                              : "bg-green-100 text-green-700"
-                          }`}
+                      <TableCell className="px-4">
+                        <StatusBadge status={inquiry.status} />
+                      </TableCell>
+                      <TableCell className="px-4 text-right">
+                        <Button
+                          onClick={() => handleOpenModal("status", inquiry._id)}
+                          variant="ghost"
+                          size="sm"
+                          className="text-slate-500 hover:text-primary"
                         >
-                          {inquiry.status || "N/A"}
-                        </span>
-                      </TableCell>
-                      <TableCell className="px-4 py-3 text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button onClick={()=>handleOpenModal("status", inquiry._id)} variant="ghost" size="sm">
-                            <Pencil className="w-4 h-4 mr-1" />
-                            Edit
-                          </Button>
-                          {/* <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-red-600 hover:text-red-800"
-                          >
-                            <Trash2 className="w-4 h-4 mr-1" />
-                            Delete
-                          </Button> */}
-                        </div>
+                          <Pencil className="mr-1.5 h-4 w-4" />
+                          Update
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
+            </div>
 
+            <div className="border-t border-slate-100 px-4">
               <PaginationControl
                 currentPage={page}
                 totalPages={totalPages}
                 onPageChange={(newPage) => setPage(newPage)}
               />
-            </>
-          )}
-        </div>
+            </div>
+          </>
+        )}
       </div>
     </DashboardLayout>
   );
