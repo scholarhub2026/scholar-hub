@@ -9,6 +9,8 @@ import Details from "@/components/BookingPage/details";
 import { useCreateBookingMutation } from "@/api/booking/create-booking";
 import { useAuth } from "@/auth/AuthProvider";
 import { roleHome, roleSlug } from "@/config/roles";
+import { cn } from "@/lib/utils";
+import { Check } from "lucide-react";
 
 
 
@@ -156,45 +158,39 @@ const BookingPage = () => {
     <MainLayout>
       <div className="container-wide py-8 md:py-12">
         {/* Progress Steps */}
-        <div className="mb-8">
-          <div className="flex items-center justify-center">
+        <div className="mx-auto mb-10 max-w-2xl">
+          <div className="flex items-start">
             {steps.map((step, index) => (
               <React.Fragment key={step.id}>
                 {index > 0 && (
                   <div
-                    className={`flex-1 h-1 mx-2 ${
-                      index <= currentStep ? "bg-primary" : "bg-muted"
-                    }`}
+                    className={cn(
+                      "mt-5 h-0.5 flex-1 rounded-full transition-colors",
+                      index <= currentStep ? "bg-primary" : "bg-slate-200",
+                    )}
                   />
                 )}
                 <div className="flex flex-col items-center">
                   <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                    className={cn(
+                      "flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold transition-all",
                       index < currentStep
-                        ? "bg-primary text-primary-foreground"
+                        ? "bg-primary text-white"
                         : index === currentStep
-                        ? "border-2 border-primary text-primary"
-                        : "border-2 border-muted text-muted-foreground"
-                    }`}
-                  >
-                    {index < currentStep ? (
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="h-4 w-4"
-                      >
-                        <path d="M20 6L9 17l-5-5" />
-                      </svg>
-                    ) : (
-                      index + 1
+                          ? "bg-primary text-white ring-4 ring-primary/15"
+                          : "bg-slate-100 text-slate-400",
                     )}
+                  >
+                    {index < currentStep ? <Check className="h-5 w-5" /> : index + 1}
                   </div>
-                  <div className="text-xs mt-1">{step.name}</div>
+                  <span
+                    className={cn(
+                      "mt-2 text-xs font-medium",
+                      index <= currentStep ? "text-slate-900" : "text-slate-400",
+                    )}
+                  >
+                    {step.name}
+                  </span>
                 </div>
               </React.Fragment>
             ))}
@@ -223,26 +219,44 @@ const BookingPage = () => {
           {/* Payment Step */}
           {currentStep === 2 && (
             <div className="animate-fade-in">
-              <div className="text-center mb-8">
-                <h2 className="text-2xl font-bold mb-2">Payment Information</h2>
-                <p className="text-muted-foreground">
-                  Review your booking and complete payment.
-                </p>
+              <div className="mb-8 text-center">
+                <h2 className="font-display text-2xl font-bold text-slate-900">
+                  Review &amp; pay
+                </h2>
+                <p className="mt-1 text-slate-500">Confirm your booking details below.</p>
               </div>
 
-              <div className="space-y-6">
-                <Card className="border-0 shadow-sm">
-                  <CardContent className="p-6">
-                    <div className="space-y-4">
-                      <div className="pt-4 border-t">
-                        <div className="flex justify-between items-center font-medium">
-                          <span>Total</span>
-                          <span>₹{formData.totalAmount}.00</span>
-                        </div>
-                      </div>
+              <div className="mx-auto max-w-xl space-y-4">
+                <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+                  <div className="space-y-3 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Mentor</span>
+                      <span className="font-medium capitalize text-slate-800">
+                        {mentor.firstName} {mentor.lastName}
+                      </span>
                     </div>
-                  </CardContent>
-                </Card>
+                    {formData.selectedClass?.class_id?.class && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Class</span>
+                        <span className="font-medium capitalize text-slate-800">
+                          {formData.selectedClass.class_id.class} · {formData.selectedSyllabus}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Booking type</span>
+                      <span className="font-medium capitalize text-slate-800">
+                        {formData.bookingType}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="mt-5 flex items-center justify-between rounded-xl bg-brand-gradient px-5 py-4 text-white">
+                    <span className="font-medium">Total</span>
+                    <span className="font-display text-xl font-bold">
+                      ₹{formData.totalAmount}
+                    </span>
+                  </div>
+                </div>
 
                 {/* <div className="space-y-4 pt-4">
                   <h3 className="font-semibold">Payment Method</h3>
@@ -361,13 +375,13 @@ const BookingPage = () => {
 
           {/* Navigation Buttons */}
           {currentStep < 3 && (
-            <div className="flex justify-between mt-12">
+            <div className="mx-auto mt-8 flex max-w-xl justify-between">
               {currentStep > 0 ? (
                 <Button variant="outline" onClick={prevStep}>
                   Back
                 </Button>
               ) : (
-                <div></div>
+                <div />
               )}
 
               <Button onClick={nextStep} disabled={!isStepComplete()}>
