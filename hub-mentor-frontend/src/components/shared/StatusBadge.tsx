@@ -11,6 +11,8 @@ const STYLES: Record<string, string> = {
   completed: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
   cancelled: "bg-slate-100 text-slate-600 ring-slate-500/20",
   // payment
+  paid: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
+  free: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
   failed: "bg-red-50 text-red-700 ring-red-600/20",
   // enquiry resolution
   resolved: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",

@@ -119,8 +119,15 @@ const BookingPage = () => {
         onSuccess: (res: any) => {
           const bookingId = res?.newBooking?._id;
 
-          // Free (₹0) booking — nothing to pay, go straight to confirmation.
+          // Free (₹0) booking — nothing to pay. Confirm it right away so it
+          // doesn't linger as "Pending" with a Make Payment button.
           if (!updatedForm.totalAmount || updatedForm.totalAmount < 1) {
+            if (bookingId) {
+              updateBooking({
+                bookingId,
+                updateData: { bookingStatus: "confirmed" },
+              });
+            }
             setCurrentStep((prev) => prev + 1);
             return;
           }
@@ -139,6 +146,7 @@ const BookingPage = () => {
                   bookingId,
                   updateData: {
                     paymentStatus: "completed",
+                    bookingStatus: "confirmed",
                     transactionId: rp.razorpay_payment_id,
                   },
                 });

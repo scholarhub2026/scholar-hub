@@ -15,6 +15,7 @@ import { useAuth } from "@/auth/AuthProvider";
 import { roleSlug } from "@/config/roles";
 import { handleOpenModal } from "@/contexts/modal-state";
 import { useCreatePaymentLinkMutation } from "@/api/booking/create-payment-link";
+import { useUpdateBookingMutation } from "@/api/booking/update-booking";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Skeleton } from "../ui/skeleton";
@@ -56,6 +57,29 @@ const BookingTable = () => {
     search: debouncedSearch,
   });
   const { mutate: createLink } = useCreatePaymentLinkMutation();
+  const { mutate: updateBooking } = useUpdateBookingMutation();
+
+  // Open Razorpay for an existing (pending) booking, then mark it paid on success.
+  const payForBooking = (booking) => {
+    makePayment({
+      totalAmount: booking.totalAmount,
+      orderId: booking._id,
+      bookingId: booking._id,
+      studentName: booking?.studentName,
+      email: booking.email,
+      phone: booking.phone,
+      onSuccess: (rp) => {
+        updateBooking({
+          bookingId: booking._id,
+          updateData: {
+            paymentStatus: "completed",
+            bookingStatus: "confirmed",
+            transactionId: rp.razorpay_payment_id,
+          },
+        });
+      },
+    });
+  };
 
   const bookings = data?.bookings || [];
   const pagination = data?.pagination || {};
@@ -156,7 +180,9 @@ const BookingTable = () => {
                       <TableCell className="px-4">
                         {user.isStudent || user.isMentor ? (
                           <span className="font-semibold text-slate-800">
-                            ₹{booking.totalAmount || "0"}
+                            {booking.totalAmount > 0
+                              ? `₹${booking.totalAmount}`
+                              : "Free"}
                           </span>
                         ) : (
                           <a
@@ -182,8 +208,12 @@ const BookingTable = () => {
                       <TableCell className="px-4">
                         <StatusBadge
                           status={
-                            PAYMENT_LABEL[booking.paymentStatus?.toLowerCase()] ??
-                            (booking.paymentStatus || "pending")
+                            booking.totalAmount > 0
+                              ? (PAYMENT_LABEL[
+                                  booking.paymentStatus?.toLowerCase()
+                                ] ??
+                                (booking.paymentStatus || "pending"))
+                              : "free"
                           }
                         />
                       </TableCell>
@@ -213,26 +243,22 @@ const BookingTable = () => {
                           </div>
                         )}
 
-                        {user.isStudent && (
-                          <Button
-                            size="sm"
-                            disabled={
-                              booking.paymentStatus?.toLowerCase() === "completed" ||
-                              booking.paymentStatus?.toLowerCase() === "paid"
-                            }
-                            onClick={() =>
-                              makePayment({
-                                totalAmount: booking.totalAmount,
-                                orderId: booking._id,
-                                studentName: booking?.studentName,
-                                email: booking.email,
-                                contact: booking.phone,
-                              })
-                            }
-                          >
-                            Make Payment
-                          </Button>
-                        )}
+                        {user.isStudent &&
+                          (booking.totalAmount < 1 ? (
+                            <span className="text-sm text-slate-400">
+                              No payment due
+                            </span>
+                          ) : booking.paymentStatus?.toLowerCase() ===
+                              "completed" ||
+                            booking.paymentStatus?.toLowerCase() === "paid" ? (
+                            <span className="text-sm font-medium text-emerald-600">
+                              Paid
+                            </span>
+                          ) : (
+                            <Button size="sm" onClick={() => payForBooking(booking)}>
+                              Make Payment
+                            </Button>
+                          ))}
 
                         {user.isMentor && (
                           <div className="flex justify-end gap-2">
