@@ -30,13 +30,6 @@ const RenderMentorDetails = () => {
 
   return (
     <div className="space-y-6">
-      <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold text-gray-900 mb-2">
-          Mentor Details
-        </h2>
-        <p className="text-gray-600">Tell us about your expertise</p>
-      </div>
-
       {/* About You (mentor bio) */}
       <div>
         <Label className="block text-sm font-medium text-gray-700 mb-1">

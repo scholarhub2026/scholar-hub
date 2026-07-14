@@ -126,17 +126,8 @@ export default function RenderSubjectDetails() {
   };
 
   return (
-    <div className="bg-gray-50 p-4 md:p-6">
-      <div className="bg-white rounded-xl">
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            Subjects &amp; Pricing
-          </h2>
-          <p className="text-gray-600">
-            Choose the classes and subjects you teach, and set your price for each
-          </p>
-        </div>
-
+    <div>
+      <div>
         <section>
           <h2 className="text-lg font-semibold mb-4">Subjects per Class</h2>
 

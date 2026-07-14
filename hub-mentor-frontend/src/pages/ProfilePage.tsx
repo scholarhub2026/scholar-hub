@@ -1,201 +1,297 @@
-import { useEffect, useState } from "react";
-import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import { useGetMentorQuery } from "@/api/mentor/get-mentor";
-import { useParams, useNavigate } from "react-router-dom";
+import { useEffect, useState, type ReactNode } from "react";
+import { useParams } from "react-router-dom";
 import { FormProvider, useForm } from "react-hook-form";
-import NavigationButton from "@/components/profile-page/NavigationButton";
-import RenderBasicInfo from "@/components/profile-page/renderBasicInfo";
+import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import PageHeader from "@/components/shared/PageHeader";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Pencil, Loader2, FileText } from "lucide-react";
+import { useGetMentorQuery } from "@/api/mentor/get-mentor";
+import { useUpdateMentorMutation } from "@/api/mentor/update-mentor";
+import { useAuth } from "@/auth/AuthProvider";
+import { roleSlug } from "@/config/roles";
+
 import RenderMentorDetails from "@/components/profile-page/RenderMentorDetails";
 import RenderPaymentDetails from "@/components/profile-page/RengerPaymentDetails";
 import RenderSubjectDetails from "@/components/profile-page/RenderSubjectDetails";
-import { useUpdateMentorMutation } from "@/api/mentor/update-mentor";
-import { useAuth } from "@/auth/AuthProvider";
-import { roleSlug, roleHome } from "@/config/roles";
-import PageHeader from "@/components/shared/PageHeader";
-import { cn } from "@/lib/utils";
-import { User, GraduationCap, BookOpen, CreditCard } from "lucide-react";
 
-const STEPS = [
-  { id: 1, label: "Basic Info", icon: User },
-  { id: 2, label: "Mentor Details", icon: GraduationCap },
-  { id: 3, label: "Subjects & Pricing", icon: BookOpen },
-  { id: 4, label: "Payment", icon: CreditCard },
+// Fields validated per section before saving that section.
+const DETAILS_FIELDS = ["additional_details", "education_qualification", "location", "id_proof"];
+const PAYMENT_FIELDS = [
+  "payment_details.back_account",
+  "payment_details.ifsc_code",
+  "payment_details.branch",
+  "payment_details.account_holder_name",
+  "payment_details.upi_id",
 ];
+
+type SectionKey = "details" | "subjects" | "payment";
+
+const SectionCard = ({
+  title,
+  description,
+  editable = true,
+  editing,
+  onEdit,
+  onCancel,
+  onSave,
+  saving,
+  children,
+}: {
+  title: string;
+  description?: string;
+  editable?: boolean;
+  editing?: boolean;
+  onEdit?: () => void;
+  onCancel?: () => void;
+  onSave?: () => void;
+  saving?: boolean;
+  children: ReactNode;
+}) => (
+  <Card className="rounded-xl border-slate-200/80 shadow-sm">
+    <CardHeader className="flex flex-row items-start justify-between border-b border-slate-100 py-4">
+      <div>
+        <CardTitle className="font-display text-base">{title}</CardTitle>
+        {description && <p className="mt-0.5 text-sm text-slate-500">{description}</p>}
+      </div>
+      {editable && !editing && (
+        <Button variant="outline" size="sm" onClick={onEdit}>
+          <Pencil className="mr-1.5 h-4 w-4" />
+          Edit
+        </Button>
+      )}
+    </CardHeader>
+    <CardContent className="py-5">
+      {children}
+      {editing && (
+        <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-4">
+          <Button variant="ghost" onClick={onCancel} disabled={saving}>
+            Cancel
+          </Button>
+          <Button onClick={onSave} disabled={saving}>
+            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Save
+          </Button>
+        </div>
+      )}
+    </CardContent>
+  </Card>
+);
+
+const ReadonlyField = ({ label, value }: { label: string; value?: ReactNode }) => (
+  <div>
+    <div className="text-xs uppercase tracking-wide text-slate-400">{label}</div>
+    <div className="text-sm font-medium capitalize text-slate-800">{value || "—"}</div>
+  </div>
+);
 
 const ProfilePage = () => {
   const { user, refresh } = useAuth();
-  const navigate = useNavigate();
   const role = roleSlug(user?.role);
-  const methods = useForm({
-    mode: "onSubmit",
-  });
-  const { handleSubmit, trigger, reset, clearErrors, getValues } = methods;
-
-  const [currentStep, setCurrentStep] = useState(1);
-
-  const getFieldsForStep = (step: number): string[] => {
-    switch (step) {
-      case 1:
-        return [
-          "firstName",
-          "lastName",
-          "email",
-          "phoneNumber",
-          "password",
-          "confirmPassword",
-          "gender",
-        ];
-      case 2:
-        return [
-          "experience",
-          "education_qualification",
-          "available_slot",
-          "rating",
-          "id_proof",
-          "location",
-        ];
-      // case 3:
-      //   return ["selected_class"];
-      case 4:
-        return [
-          "payment_details.back_account",
-          "payment_details.ifsc_code",
-          "payment_details.branch",
-          "payment_details.account_holder_name",
-          "payment_details.upi_id",
-        ];
-      default:
-        return [];
-    }
-  };
-
-  const nextStep = async () => {
-    const fields = getFieldsForStep(currentStep);
-    const isStepValid = await trigger(fields);
-
-    if (!isStepValid) return;
-
-    clearErrors();
-
-    setCurrentStep((prev) => prev + 1);
-  };
-
-  const prevStep = () => {
-    setCurrentStep((prev) => prev - 1);
-  };
-  const { mutate } = useUpdateMentorMutation();
-
   const { id } = useParams<{ id: string }>();
-  const { data } = useGetMentorQuery({
-    id,
-  });
 
-  const onSubmit = (formData) => {
+  const methods = useForm();
+  const { reset, trigger, getValues } = methods;
+
+  const { data, isLoading } = useGetMentorQuery({ id });
+  const mentor: any = data?.data || {};
+
+  const { mutate, isPending } = useUpdateMentorMutation();
+  const [editing, setEditing] = useState<SectionKey | null>(null);
+
+  useEffect(() => {
+    if (data?.data) reset({ ...data.data });
+  }, [data, reset]);
+
+  const cancel = () => {
+    reset({ ...(data?.data || {}) });
+    setEditing(null);
+  };
+
+  const saveSection = async (fields: string[]) => {
+    const valid = await trigger(fields);
+    if (!valid) return;
     mutate(
       {
         id,
-        // Mark the profile complete so the "incomplete" banner clears and the
-        // mentor becomes visible to students.
-        data: { ...formData, is_first_login: false, completed_profile: true },
+        // Any save also marks the profile complete (clears the banner).
+        data: { ...getValues(), is_first_login: false, completed_profile: true },
       },
       {
         onSuccess: async () => {
-          // Refresh the session so the in-memory user reflects the completion,
-          // then send the mentor to their dashboard.
           await refresh();
-          navigate(roleHome(user?.role));
+          setEditing(null);
         },
       },
     );
   };
 
-  useEffect(() => {
-    const userDetails = data?.data || {};
-    if (userDetails) {
-      reset({
-        ...userDetails,
-      });
-    }
-  }, [data, reset]);
+  const classes = Array.isArray(mentor.selected_class) ? mentor.selected_class : [];
 
-  const getStepContent = () => {
-    if (currentStep < 1 || currentStep > 4) {
-      return <div>Invalid step</div>;
-    }
-    switch (currentStep) {
-      case 1:
-        return <RenderBasicInfo />;
-      case 2:
-        return <RenderMentorDetails />;
-      case 3:
-        return <RenderSubjectDetails />;
-
-      case 4:
-        return <RenderPaymentDetails />;
-      default:
-        return <RenderBasicInfo />;
-    }
-  };
-
-  const getTotalSteps = () => {
-    return 4;
-  };
+  if (isLoading) {
+    return (
+      <DashboardLayout userRole={role}>
+        <PageHeader title="My Profile" />
+        <div className="max-w-3xl space-y-6">
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-48 w-full" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout userRole={role}>
       <PageHeader
         title="My Profile"
-        description="Complete or update your details. Jump to any section from the left."
+        description="View your details and edit each section as needed."
       />
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[240px_1fr]">
-        {/* Left step tabs — jump directly to any section */}
-        <nav className="h-fit rounded-xl border border-slate-200/80 bg-white p-2 shadow-sm lg:sticky lg:top-20">
-          {STEPS.map((s) => {
-            const active = currentStep === s.id;
-            const Icon = s.icon;
-            return (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => setCurrentStep(s.id)}
-                className={cn(
-                  "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors",
-                  active
-                    ? "bg-primary/10 text-primary"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
-                )}
-              >
-                <span
-                  className={cn(
-                    "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
-                    active ? "bg-primary text-white" : "bg-slate-200 text-slate-600",
-                  )}
-                >
-                  {s.id}
-                </span>
-                <Icon className="hidden h-4 w-4 shrink-0 sm:inline lg:hidden xl:inline" />
-                {s.label}
-              </button>
-            );
-          })}
-        </nav>
-
-        {/* Step content */}
-        <div className="rounded-xl border border-slate-200/80 bg-white p-6 shadow-sm md:p-8">
-          <FormProvider {...methods}>
-            <form onSubmit={handleSubmit(onSubmit)}>
-              {getStepContent()}
-              <NavigationButton
-                currentStep={currentStep}
-                prevStep={prevStep}
-                nextStep={nextStep}
-                getTotalSteps={getTotalSteps}
+      <FormProvider {...methods}>
+        <div className="max-w-3xl space-y-6">
+          {/* Account — read-only (contact admin to change) */}
+          <SectionCard
+            title="Account"
+            description="Your identity details. Contact the admin to change these."
+            editable={false}
+          >
+            <div className="grid grid-cols-2 gap-4">
+              <ReadonlyField
+                label="Name"
+                value={`${mentor.firstName ?? ""} ${mentor.lastName ?? ""}`.trim()}
               />
-            </form>
-          </FormProvider>
+              <ReadonlyField label="Gender" value={mentor.gender} />
+              <ReadonlyField label="Email" value={<span className="lowercase">{mentor.email}</span>} />
+              <ReadonlyField label="Phone" value={mentor.phoneNumber} />
+            </div>
+          </SectionCard>
+
+          {/* Details */}
+          <SectionCard
+            title="Mentor Details"
+            description="Your bio, qualification, location and ID proof."
+            editing={editing === "details"}
+            onEdit={() => setEditing("details")}
+            onCancel={cancel}
+            onSave={() => saveSection(DETAILS_FIELDS)}
+            saving={isPending}
+          >
+            {editing === "details" ? (
+              <RenderMentorDetails />
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <ReadonlyField label="Qualification" value={mentor.education_qualification} />
+                  <ReadonlyField label="Location" value={mentor.location} />
+                </div>
+                {mentor.additional_details && (
+                  <div>
+                    <div className="text-xs uppercase tracking-wide text-slate-400">About</div>
+                    <div
+                      className="prose prose-sm mt-1 max-w-none text-slate-600"
+                      dangerouslySetInnerHTML={{ __html: mentor.additional_details }}
+                    />
+                  </div>
+                )}
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-slate-400">ID Proof</div>
+                  {mentor.id_proof ? (
+                    <a
+                      href={mentor.id_proof}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-1 inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+                    >
+                      <FileText className="h-4 w-4" /> View document
+                    </a>
+                  ) : (
+                    <div className="text-sm text-slate-400">Not uploaded</div>
+                  )}
+                </div>
+              </div>
+            )}
+          </SectionCard>
+
+          {/* Subjects & Pricing */}
+          <SectionCard
+            title="Subjects & Pricing"
+            description="The classes and subjects you teach, with prices."
+            editing={editing === "subjects"}
+            onEdit={() => setEditing("subjects")}
+            onCancel={cancel}
+            onSave={() => saveSection(["selected_class"])}
+            saving={isPending}
+          >
+            {editing === "subjects" ? (
+              <RenderSubjectDetails />
+            ) : classes.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-5 text-center text-sm text-slate-400">
+                You haven't selected any classes yet. Click Edit to add the classes and
+                subjects you teach.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {classes.map((cls: any, i: number) => (
+                  <div key={i} className="rounded-lg border border-slate-200 p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium capitalize text-slate-800">
+                        {cls.class_id?.class ?? "Class"}
+                        {cls.class_id?.syllabus ? ` · ${cls.class_id.syllabus}` : ""}
+                      </span>
+                      <span className="text-sm font-semibold text-slate-700">₹{cls.price}</span>
+                    </div>
+                    {Array.isArray(cls.subject) && cls.subject.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {cls.subject.map((sub: any, j: number) => (
+                          <span
+                            key={j}
+                            className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary"
+                          >
+                            <span className="capitalize">{sub.subject_id?.name ?? "Subject"}</span>
+                            <span className="text-primary/60">₹{sub.subject_price}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </SectionCard>
+
+          {/* Payment */}
+          <SectionCard
+            title="Payment & Photo"
+            description="Bank details, UPI, and your profile picture."
+            editing={editing === "payment"}
+            onEdit={() => setEditing("payment")}
+            onCancel={cancel}
+            onSave={() => saveSection(PAYMENT_FIELDS)}
+            saving={isPending}
+          >
+            {editing === "payment" ? (
+              <RenderPaymentDetails />
+            ) : (
+              <div className="flex items-start justify-between gap-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <ReadonlyField label="Account holder" value={mentor.payment_details?.account_holder_name} />
+                  <ReadonlyField label="Bank A/C" value={mentor.payment_details?.back_account} />
+                  <ReadonlyField label="IFSC" value={<span className="uppercase">{mentor.payment_details?.ifsc_code}</span>} />
+                  <ReadonlyField label="UPI" value={<span className="lowercase">{mentor.payment_details?.upi_id}</span>} />
+                </div>
+                {mentor.profile_pic && (
+                  <img
+                    src={mentor.profile_pic}
+                    alt="Profile"
+                    className="h-16 w-16 shrink-0 rounded-full border object-cover"
+                  />
+                )}
+              </div>
+            )}
+          </SectionCard>
         </div>
-      </div>
+      </FormProvider>
     </DashboardLayout>
   );
 };
