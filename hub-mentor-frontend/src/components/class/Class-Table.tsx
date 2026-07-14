@@ -1,5 +1,3 @@
-"use client";
-
 import React, { useState } from "react";
 import {
   Table,
@@ -9,10 +7,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Pencil, Trash } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Pencil, Trash2, Layers } from "lucide-react";
 import { useGetClassesQuery } from "@/api/class/get-classess";
 import { useDeleteClassMutation } from "@/api/class/delete-class";
 import PaginationControl from "../ui/PaginationController";
+import StatusBadge from "@/components/shared/StatusBadge";
+
+const HEAD = "px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500";
 
 const ClassManagement = ({ setEditId }) => {
   const [page, setPage] = useState(1);
@@ -26,73 +29,98 @@ const ClassManagement = ({ setEditId }) => {
   const totalPages = Math.ceil(total / limit);
 
   return (
-    <div className="bg-white p-6 rounded-xl shadow-md overflow-auto">
-      <h2 className="text-xl font-semibold mb-4">Class List</h2>
+    <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm">
+      <div className="border-b border-slate-100 px-5 py-4">
+        <h2 className="font-display text-base font-bold text-slate-900">Class List</h2>
+      </div>
 
       {isLoading ? (
-        <p className="text-gray-500">Loading...</p>
+        <div className="space-y-3 p-5">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </div>
       ) : isError ? (
-        <p className="text-red-600">Error: {error?.message}</p>
+        <div className="p-8 text-center text-red-500">Error: {error?.message}</div>
       ) : classes.length === 0 ? (
-        <p className="text-gray-500">No class data available.</p>
+        <div className="flex flex-col items-center gap-2 py-12 text-slate-400">
+          <Layers className="h-7 w-7" />
+          <p className="text-sm">No classes yet. Add one on the left.</p>
+        </div>
       ) : (
         <>
-          <Table className="min-w-full divide-y divide-gray-200">
-            <TableHeader className="bg-gray-100">
-              <TableRow className="text-center">
-                <TableHead>#</TableHead>
-                <TableHead>Class</TableHead>
-                <TableHead>Syllabus</TableHead>
-                <TableHead>Total Subjects</TableHead>
-                <TableHead>Base Price</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {classes.map((cls, i) => (
-                <TableRow className="text-center" key={cls._id}>
-                  <TableCell>{(page - 1) * limit + i + 1}</TableCell>
-                  <TableCell>{cls?.class}</TableCell>
-                  <TableCell>{cls?.syllabus}</TableCell>
-                  <TableCell>{cls?.subjects?.length}</TableCell>
-                  <TableCell>₹{cls?.basePrice}</TableCell>
-                  <TableCell>
-                    {cls?.isActive ? (
-                      <span className="text-green-600 font-medium">Active</span>
-                    ) : (
-                      <span className="text-red-600 font-medium">Inactive</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right space-x-2">
-                    <button
-                      onClick={() => setEditId(cls._id)}
-                      className="text-blue-600 hover:text-blue-800"
-                      title="Edit"
-                    >
-                      <Pencil className="w-4 h-4 inline" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        const confirmDelete = confirm("Are you sure you want to delete this class?");
-                        if (confirmDelete) deleteClass(cls._id);
-                      }}
-                      className="text-red-600 hover:text-red-800"
-                      title="Delete"
-                    >
-                      <Trash className="w-4 h-4 inline" />
-                    </button>
-                  </TableCell>
+          <div className="overflow-x-auto">
+            <Table className="min-w-full">
+              <TableHeader>
+                <TableRow className="border-slate-100 bg-slate-50/80 hover:bg-slate-50/80">
+                  <TableHead className={HEAD}>#</TableHead>
+                  <TableHead className={HEAD}>Class</TableHead>
+                  <TableHead className={HEAD}>Syllabus</TableHead>
+                  <TableHead className={HEAD}>Subjects</TableHead>
+                  <TableHead className={HEAD}>Price</TableHead>
+                  <TableHead className={HEAD}>Status</TableHead>
+                  <TableHead className={`${HEAD} text-right`}>Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {classes.map((cls, i) => (
+                  <TableRow
+                    key={cls._id}
+                    className="border-slate-100 transition-colors hover:bg-slate-50/60"
+                  >
+                    <TableCell className="px-4 text-slate-400">
+                      {(page - 1) * limit + i + 1}
+                    </TableCell>
+                    <TableCell className="px-4 font-medium text-slate-800">
+                      {cls?.class}
+                    </TableCell>
+                    <TableCell className="px-4 text-slate-600">{cls?.syllabus}</TableCell>
+                    <TableCell className="px-4 text-slate-600">
+                      {cls?.subjects?.length ?? 0}
+                    </TableCell>
+                    <TableCell className="px-4 font-medium text-slate-800">
+                      ₹{cls?.basePrice}
+                    </TableCell>
+                    <TableCell className="px-4">
+                      <StatusBadge status={cls?.isActive ? "active" : "inactive"} />
+                    </TableCell>
+                    <TableCell className="px-4 text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-slate-500 hover:text-primary"
+                          onClick={() => setEditId(cls._id)}
+                          title="Edit"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-red-500 hover:bg-red-50 hover:text-red-600"
+                          onClick={() => {
+                            if (confirm("Delete this class?")) deleteClass(cls._id);
+                          }}
+                          title="Delete"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
 
-          <PaginationControl
-            currentPage={page}
-            totalPages={totalPages}
-            onPageChange={(newPage) => setPage(newPage)}
-          />
+          <div className="border-t border-slate-100 px-4">
+            <PaginationControl
+              currentPage={page}
+              totalPages={totalPages}
+              onPageChange={(newPage) => setPage(newPage)}
+            />
+          </div>
         </>
       )}
     </div>

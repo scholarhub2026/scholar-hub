@@ -17,7 +17,7 @@ import { useGetClassesQuery } from "@/api/class/get-classess";
 import ClassManagement from "@/components/class/Class-Table";
 import { Pencil, Trash } from "lucide-react";
 import { useUpdateClassMutation } from "@/api/class/update-class";
-import { id } from "date-fns/locale";
+import PageHeader from "@/components/shared/PageHeader";
 
 // ---------------- Types ----------------
 type Subject = {
@@ -180,16 +180,17 @@ const onSubmit: SubmitHandler<ClassFormValues> = (formData) => {
   // ---------------- Render ----------------
   return (
     <DashboardLayout userRole="admin">
-      <div className="p-6">
-        <h1 className="text-3xl font-semibold mb-2">Class Management</h1>
-        <p className="text-gray-600 mb-6">Create or manage class records</p>
+      <PageHeader
+        title="Classes"
+        description="Create the classes/grades and their subjects that mentors can teach."
+      />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* ---------------- Form ---------------- */}
-          <form
-            onSubmit={handleSubmit(onSubmit)}
-            className="bg-white p-6 rounded-xl shadow-md space-y-6"
-          >
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        {/* ---------------- Form ---------------- */}
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="space-y-5 rounded-xl border border-slate-200/80 bg-white p-6 shadow-sm"
+        >
             {/* Class Name */}
             <div>
               <Label>Class Name</Label>
@@ -322,9 +323,8 @@ const onSubmit: SubmitHandler<ClassFormValues> = (formData) => {
             )}
           </form>
 
-          {/* ---------------- Table ---------------- */}
-          <ClassManagement setEditId={setEditId} />
-        </div>
+        {/* ---------------- Table ---------------- */}
+        <ClassManagement setEditId={setEditId} />
       </div>
     </DashboardLayout>
   );

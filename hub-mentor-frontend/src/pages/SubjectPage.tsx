@@ -3,6 +3,7 @@ import { useCreateSubjectMutation } from "@/api/subject/create-subject";
 import { useUpdateSubjectMutation } from "@/api/subject/edit-subject";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import SubjectTable from "@/components/Subject/SubjectTable";
+import PageHeader from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -53,16 +54,15 @@ const SubjectPage = () => {
 
   return (
     <DashboardLayout>
-      <div className="p-6">
-        <h1 className="text-3xl font-semibold mb-2">
-          Subject & Syllabus Management
-        </h1>
-        <p className="text-gray-600 mb-6">Create or manage subject records</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <form
-            onSubmit={handleSubmit(onSubmit)}
-            className="bg-white p-6 rounded-xl shadow-md space-y-6"
-          >
+      <PageHeader
+        title="Subjects"
+        description="Create the subjects that can be attached to classes and taught by mentors."
+      />
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="space-y-5 rounded-xl border border-slate-200/80 bg-white p-6 shadow-sm"
+        >
             <div className="flex flex-col gap-2">
               <Label htmlFor="subject">Subject</Label>
               <Input
@@ -103,8 +103,7 @@ const SubjectPage = () => {
               )}
             </div>
           </form>
-          <SubjectTable setValue={setValue} />
-        </div>
+        <SubjectTable setValue={setValue} />
       </div>
     </DashboardLayout>
   );
