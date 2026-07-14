@@ -7,6 +7,8 @@ import { useGetMentorQuery } from "@/api/mentor/get-mentor";
 import Booking from "@/components/BookingPage/booking";
 import Details from "@/components/BookingPage/details";
 import { useCreateBookingMutation } from "@/api/booking/create-booking";
+import { useAuth } from "@/auth/AuthProvider";
+import { roleHome, roleSlug } from "@/config/roles";
 
 
 
@@ -20,6 +22,7 @@ const steps = [
 
 const BookingPage = () => {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
   const [mentor, setMentor] = useState(null);
   const { data, isSuccess } = useGetMentorQuery({
     id: id as string,
@@ -336,10 +339,22 @@ const BookingPage = () => {
               </p>
 
               <div className="flex flex-col sm:flex-row justify-center gap-4">
-                {/* <Button onClick={() => makePayment(formData)}>Make Payment</Button> */}
-                <Link to="/">
-                  <Button variant="outline">Back to Home</Button>
-                </Link>
+                {user ? (
+                  <>
+                    <Link to={roleHome(user.role)}>
+                      <Button>Go to Dashboard</Button>
+                    </Link>
+                    {roleSlug(user.role) === "student" && (
+                      <Link to="/app/bookings">
+                        <Button variant="outline">View my bookings</Button>
+                      </Link>
+                    )}
+                  </>
+                ) : (
+                  <Link to="/">
+                    <Button variant="outline">Back to Home</Button>
+                  </Link>
+                )}
               </div>
             </div>
           )}
