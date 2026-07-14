@@ -10,6 +10,7 @@ import { AuthProvider } from "@/auth/AuthProvider";
 import { RequireRole, FullscreenLoader } from "@/auth/guards";
 import RoleGate from "@/app/RoleGate";
 import { ROLES } from "@/config/roles";
+import DashboardShell from "@/layouts/DashboardShell";
 import GlobalModal from "./components/common/GlobalModal";
 
 // Route components are lazy-loaded so each role's bundle is fetched on demand,
@@ -58,10 +59,6 @@ const UpdatePassword = lazy(() => import("./components/profile-page/UpdatePasswo
 
 const queryClient = new QueryClient();
 
-const admin = (el: JSX.Element) => <RequireRole roles={[ROLES.ADMIN]}>{el}</RequireRole>;
-const mentor = (el: JSX.Element) => <RequireRole roles={[ROLES.TUTOR]}>{el}</RequireRole>;
-const student = (el: JSX.Element) => <RequireRole roles={[ROLES.STUDENT]}>{el}</RequireRole>;
-
 const renderRoutes = () => (
   <Suspense fallback={<FullscreenLoader />}>
     <Routes>
@@ -80,35 +77,59 @@ const renderRoutes = () => (
       <Route path="/shipping-policy" element={<ShippingPolicy />} />
       <Route path="/cancellations-and-refunds" element={<RefundPolicy />} />
 
-      {/* ---------- Admin (ADMIN) ---------- */}
-      <Route path="/admin" element={admin(<Dashboard />)} />
-      <Route path="/admin/inquery" element={admin(<InqueryPage />)} />
-      <Route path="/admin/mentors" element={admin(<MentorDetails />)} />
-      <Route path="/admin/classes" element={admin(<ClassPage />)} />
-      <Route path="/admin/subjects" element={admin(<SubjectPage />)} />
-      <Route path="/admin/bookings" element={admin(<BookingTable />)} />
-      <Route path="/admin/ads" element={admin(<AdminAdsPage />)} />
-      <Route path="/admin/reviews" element={admin(<AdminReviewsPage />)} />
-      <Route path="/admin/referrals" element={admin(<AdminReferralsPage />)} />
-      <Route path="/admin/users" element={admin(<AdminUsersPage />)} />
-      <Route path="/admin/profile/:id" element={admin(<ProfilePage />)} />
-      <Route path="/admin/settings" element={admin(<UpdatePassword />)} />
+      {/* ---------- Admin (ADMIN) — one persistent shell, content swaps ---------- */}
+      <Route
+        element={
+          <RequireRole roles={[ROLES.ADMIN]}>
+            <DashboardShell role="admin" />
+          </RequireRole>
+        }
+      >
+        <Route path="/admin" element={<Dashboard />} />
+        <Route path="/admin/inquery" element={<InqueryPage />} />
+        <Route path="/admin/mentors" element={<MentorDetails />} />
+        <Route path="/admin/classes" element={<ClassPage />} />
+        <Route path="/admin/subjects" element={<SubjectPage />} />
+        <Route path="/admin/bookings" element={<BookingTable />} />
+        <Route path="/admin/ads" element={<AdminAdsPage />} />
+        <Route path="/admin/reviews" element={<AdminReviewsPage />} />
+        <Route path="/admin/referrals" element={<AdminReferralsPage />} />
+        <Route path="/admin/users" element={<AdminUsersPage />} />
+        <Route path="/admin/profile/:id" element={<ProfilePage />} />
+        <Route path="/admin/settings" element={<UpdatePassword />} />
+      </Route>
 
       {/* ---------- Mentor (TUTOR) ---------- */}
-      <Route path="/mentor" element={mentor(<MentorDashboard />)} />
-      <Route path="/mentor/schedule" element={mentor(<BookingTable />)} />
-      <Route path="/mentor/earnings" element={mentor(<MentorEarningsPage />)} />
-      <Route path="/mentor/availability" element={mentor(<MentorAvailabilityPage />)} />
-      <Route path="/mentor/reviews" element={mentor(<MentorReviewsPage />)} />
-      <Route path="/mentor/profile/:id" element={mentor(<ProfilePage />)} />
-      <Route path="/mentor/settings" element={mentor(<UpdatePassword />)} />
+      <Route
+        element={
+          <RequireRole roles={[ROLES.TUTOR]}>
+            <DashboardShell role="mentor" />
+          </RequireRole>
+        }
+      >
+        <Route path="/mentor" element={<MentorDashboard />} />
+        <Route path="/mentor/schedule" element={<BookingTable />} />
+        <Route path="/mentor/earnings" element={<MentorEarningsPage />} />
+        <Route path="/mentor/availability" element={<MentorAvailabilityPage />} />
+        <Route path="/mentor/reviews" element={<MentorReviewsPage />} />
+        <Route path="/mentor/profile/:id" element={<ProfilePage />} />
+        <Route path="/mentor/settings" element={<UpdatePassword />} />
+      </Route>
 
       {/* ---------- Student (STUDENT) ---------- */}
-      <Route path="/app" element={student(<StudentDashboard />)} />
-      <Route path="/app/bookings" element={student(<BookingTable />)} />
-      <Route path="/app/reviews" element={student(<StudentReviewsPage />)} />
-      <Route path="/app/refer" element={student(<ReferPage />)} />
-      <Route path="/app/settings" element={student(<UpdatePassword />)} />
+      <Route
+        element={
+          <RequireRole roles={[ROLES.STUDENT]}>
+            <DashboardShell role="student" />
+          </RequireRole>
+        }
+      >
+        <Route path="/app" element={<StudentDashboard />} />
+        <Route path="/app/bookings" element={<BookingTable />} />
+        <Route path="/app/reviews" element={<StudentReviewsPage />} />
+        <Route path="/app/refer" element={<ReferPage />} />
+        <Route path="/app/settings" element={<UpdatePassword />} />
+      </Route>
 
       {/* ---------- Backward-compat: old /dashboard/* → role home ---------- */}
       <Route path="/dashboard" element={<RoleGate />} />
