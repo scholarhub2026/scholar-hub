@@ -1,4 +1,4 @@
-import { decodeToken, encryptPassword } from '../helpers/Auth'
+import { encryptPassword } from '../helpers/Auth'
 import AuthModal from '../models/Auth'
 import { catchAsync } from '../utils/catchAsync'
 import { generatePass } from '../utils/generatePassword'
@@ -205,26 +205,19 @@ export const updateMentor = catchAsync(async (req: Request, res: Response) => {
 
   // ✅ Handle admin approval logic
   if (admin_approve) {
-    const authHeader = req.headers["authorization"];
-    const token = authHeader?.startsWith("Bearer ")
-      ? authHeader.split(" ")[1]
-      : null;
+    // req.user is set by the requireAuth middleware, which decodes the token
+    // safely. A missing/expired/invalid token leaves it unset → return 401 so
+    // the client silently refreshes and retries, instead of a hard 400 that
+    // strands the admin (the old manual decodeToken threw "invalid signature").
+    const authedUser = (req as { user?: { _id?: string; role?: string } }).user;
 
-    if (!token) {
-      return res.status(401).json({ message: "No token provided" });
+    if (!authedUser?._id) {
+      return res.status(401).json({ message: "Session expired. Please try again." });
     }
-
-    const decoded = decodeToken(token);
-    if (!decoded?._id) {
-      return res.status(401).json({ message: "Invalid or expired token" });
-    }
-
-    const isAdmin = await AuthModal.findOne({ _id: decoded._id, role: "ADMIN" });
-
-    if (!isAdmin) {
+    if (authedUser.role !== "ADMIN") {
       return res
         .status(403)
-        .json({ message: "You do not have the permission" });
+        .json({ message: "You do not have permission to approve mentors" });
     }
 
     const user = await AuthModal.findOne({ _id: id, role: "TUTOR" });
