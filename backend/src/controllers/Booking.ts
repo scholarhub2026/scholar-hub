@@ -159,6 +159,45 @@ export const updateBookingController = async (req, res) => {
   }
 }
 
+export const cancelBookingController = async (req, res) => {
+  try {
+    const { bookingId } = req.params
+
+    if (!mongooseIdValidator(bookingId)) {
+      return res.status(400).json({ message: 'Invalid bookingId' })
+    }
+
+    const booking = await Booking.findById(bookingId)
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' })
+    }
+
+    // Only the student who made it (or an admin) may cancel it.
+    const isOwner = booking.studentId?.toString() === req.user?._id
+    const isAdmin = req.user?.role === 'ADMIN'
+    if (!isOwner && !isAdmin) {
+      return res
+        .status(403)
+        .json({ message: 'You can only cancel your own bookings.' })
+    }
+
+    // A paid booking can't be self-cancelled here (needs admin/refund handling).
+    if (booking.paymentStatus === 'completed') {
+      return res.status(400).json({
+        message: 'This booking is already paid and cannot be cancelled here.',
+      })
+    }
+
+    booking.bookingStatus = 'cancelled'
+    booking.paymentStatus = 'cancelled'
+    await booking.save()
+
+    return res.status(200).json({ message: 'Booking cancelled', booking })
+  } catch (error) {
+    return res.status(500).json({ message: 'Server Error', error })
+  }
+}
+
 export const deleteBookingController = async (req, res) => {
   try {
     const { bookingId } = req.params

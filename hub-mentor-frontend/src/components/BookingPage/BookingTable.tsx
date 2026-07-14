@@ -17,6 +17,7 @@ import { handleOpenModal } from "@/contexts/modal-state";
 import { useCreatePaymentLinkMutation } from "@/api/booking/create-payment-link";
 import { useUpdateBookingMutation } from "@/api/booking/update-booking";
 import { useDeleteBookingMutation } from "@/api/booking/delete-booking";
+import { useCancelBookingMutation } from "@/api/booking/cancel-booking";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Skeleton } from "../ui/skeleton";
@@ -70,6 +71,53 @@ const BookingTable = () => {
     ) {
       deleteBooking(booking._id);
     }
+  };
+
+  const { mutate: cancelBooking, isPending: isCancelling } =
+    useCancelBookingMutation();
+
+  const handleCancel = (booking) => {
+    if (
+      window.confirm("Cancel this booking? You can book it again afterwards.")
+    ) {
+      cancelBooking(booking._id);
+    }
+  };
+
+  // Student's action for a row: paid → "Paid", cancelled → "Cancelled",
+  // otherwise Make Payment (if priced) + Cancel.
+  const renderStudentAction = (booking) => {
+    const pay = booking.paymentStatus?.toLowerCase();
+    const status = booking.bookingStatus?.toLowerCase();
+
+    if (status === "cancelled" || pay === "cancelled") {
+      return <span className="text-sm text-slate-400">Cancelled</span>;
+    }
+    if (pay === "completed" || pay === "paid") {
+      return (
+        <span className="text-sm font-medium text-emerald-600">Paid</span>
+      );
+    }
+    return (
+      <div className="flex items-center justify-end gap-2">
+        {booking.totalAmount > 0 ? (
+          <Button size="sm" onClick={() => payForBooking(booking)}>
+            Make Payment
+          </Button>
+        ) : (
+          <span className="text-sm text-slate-400">No payment due</span>
+        )}
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-red-600 hover:text-red-700"
+          disabled={isCancelling}
+          onClick={() => handleCancel(booking)}
+        >
+          Cancel
+        </Button>
+      </div>
+    );
   };
 
   // Open Razorpay for an existing (pending) booking, then mark it paid on success.
@@ -267,22 +315,7 @@ const BookingTable = () => {
                           </div>
                         )}
 
-                        {user.isStudent &&
-                          (booking.totalAmount < 1 ? (
-                            <span className="text-sm text-slate-400">
-                              No payment due
-                            </span>
-                          ) : booking.paymentStatus?.toLowerCase() ===
-                              "completed" ||
-                            booking.paymentStatus?.toLowerCase() === "paid" ? (
-                            <span className="text-sm font-medium text-emerald-600">
-                              Paid
-                            </span>
-                          ) : (
-                            <Button size="sm" onClick={() => payForBooking(booking)}>
-                              Make Payment
-                            </Button>
-                          ))}
+                        {user.isStudent && renderStudentAction(booking)}
 
                         {user.isMentor && (
                           <div className="flex justify-end gap-2">
