@@ -1,59 +1,59 @@
-const loadRazorpay = (src) => {
+const loadRazorpay = (src: string) => {
   return new Promise((resolve) => {
+    // Avoid injecting the script twice.
+    if (document.querySelector(`script[src="${src}"]`)) return resolve(true);
     const script = document.createElement("script");
     script.src = src;
-    script.onload = () => {
-      resolve(true);
-    };
-    script.onerror = () => {
-      resolve(false);
-    };
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
     document.body.appendChild(script);
   });
 };
 
 const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID;
 
+type PaymentArgs = {
+  totalAmount: number;
+  orderId?: string | number;
+  bookingId?: string;
+  studentName?: string;
+  email?: string;
+  phone?: string;
+  description?: string;
+  onSuccess?: (response: { razorpay_payment_id: string }) => void;
+  onDismiss?: () => void;
+};
 
-
-export const makePayment = async (data) => {
-  const res = await loadRazorpay(
-    "https://checkout.razorpay.com/v1/checkout.js"
-  );
-
+export const makePayment = async (data: PaymentArgs) => {
+  const res = await loadRazorpay("https://checkout.razorpay.com/v1/checkout.js");
   if (!res) {
     alert("Razorpay SDK failed to load. Are you online?");
     return;
   }
 
-  // Normally you create an order from backend and get order_id
-  // For demo purpose, using test key directly
   const options = {
-    key: RAZORPAY_KEY_ID, // Replace with your Razorpay key_id
-    amount: data.totalAmount * 100, // amount in paisa (50000 = ₹500)
+    key: RAZORPAY_KEY_ID,
+    amount: Math.round(Number(data.totalAmount) * 100), // paise
     currency: "INR",
     name: "Scholar Hub",
-    description: data?.orderId,
+    description: data.description || `Booking ${data.orderId ?? ""}`,
     image: "https://www.scholarhub.live/og-image.png",
-    handler: async function (response) {
-      alert("Payment successful! Payment ID: " + response.razorpay_payment_id);
-
-      // You can send this response to backend to verify payment
+    handler: (response: { razorpay_payment_id: string }) => {
+      data.onSuccess?.(response);
+    },
+    modal: {
+      ondismiss: () => data.onDismiss?.(),
     },
     prefill: {
       name: data.studentName,
       email: data.email,
       contact: data.phone,
     },
-
-    notes: {
-      address: "Customer Address",
-    },
-    theme: {
-      color: "#3399cc",
-    },
+    // Lets the Razorpay webhook match the payment back to the booking.
+    notes: { bookingId: data.bookingId ?? "" },
+    theme: { color: "#2563EB" },
   };
 
-  const paymentObject = new window.Razorpay(options);
+  const paymentObject = new (window as any).Razorpay(options);
   paymentObject.open();
 };

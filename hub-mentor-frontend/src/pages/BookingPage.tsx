@@ -7,6 +7,8 @@ import { useGetMentorQuery } from "@/api/mentor/get-mentor";
 import Booking from "@/components/BookingPage/booking";
 import Details from "@/components/BookingPage/details";
 import { useCreateBookingMutation } from "@/api/booking/create-booking";
+import { useUpdateBookingMutation } from "@/api/booking/update-booking";
+import { makePayment } from "@/lib/payment-gateway";
 import { useAuth } from "@/auth/AuthProvider";
 import { roleHome, roleSlug } from "@/config/roles";
 import { cn } from "@/lib/utils";
@@ -30,6 +32,7 @@ const BookingPage = () => {
     id: id as string,
   });
   const { mutate } = useCreateBookingMutation();
+  const { mutate: updateBooking } = useUpdateBookingMutation();
 
 
   useEffect(() => {
@@ -102,7 +105,8 @@ const BookingPage = () => {
       isValidated: false, // Reset validation on step change
     }));
 
-    // Special handling for step 2 (the API submission step)
+    // Special handling for step 2 (the "Review & pay" step):
+    // create the booking, then open the payment gateway (unless it's free).
     if (currentStep === 2) {
       const updatedForm = {
         ...formData,
@@ -111,11 +115,40 @@ const BookingPage = () => {
 
       setFormData(updatedForm);
 
-      // Call API and only go to next step on success
       mutate(updatedForm, {
-        onSuccess: () => {
-          setCurrentStep((prev) => prev + 1);
-         
+        onSuccess: (res: any) => {
+          const bookingId = res?.newBooking?._id;
+
+          // Free (₹0) booking — nothing to pay, go straight to confirmation.
+          if (!updatedForm.totalAmount || updatedForm.totalAmount < 1) {
+            setCurrentStep((prev) => prev + 1);
+            return;
+          }
+
+          // Paid booking — open Razorpay. On success mark it paid, then confirm.
+          makePayment({
+            totalAmount: updatedForm.totalAmount,
+            orderId: updatedForm.orderId,
+            bookingId,
+            studentName: updatedForm.studentName,
+            email: updatedForm.email,
+            phone: updatedForm.phone,
+            onSuccess: (rp) => {
+              if (bookingId) {
+                updateBooking({
+                  bookingId,
+                  updateData: {
+                    paymentStatus: "completed",
+                    transactionId: rp.razorpay_payment_id,
+                  },
+                });
+              }
+              setCurrentStep(3);
+            },
+            // Closed without paying — booking stays pending; they can pay later
+            // from "My Bookings". Still show the confirmation.
+            onDismiss: () => setCurrentStep(3),
+          });
         },
         onError: (error) => {
           console.error("API Error:", error);
