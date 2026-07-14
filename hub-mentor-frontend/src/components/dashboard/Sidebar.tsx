@@ -1,7 +1,8 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import type { RoleSlug } from "@/config/roles";
+import { roleSlug, type RoleSlug } from "@/config/roles";
+import { useAuth } from "@/auth/AuthProvider";
 import Logo from "@/components/brand/Logo";
 import {
   LayoutDashboard,
@@ -19,6 +20,7 @@ import {
   UserCog,
   Wallet,
   Clock,
+  UserRound,
   type LucideIcon,
 } from "lucide-react";
 
@@ -46,6 +48,7 @@ export const NAVIGATION: Record<RoleSlug, NavItem[]> = {
   ],
   mentor: [
     { name: "Dashboard", href: "/mentor", icon: LayoutDashboard },
+    { name: "My Profile", href: "/mentor/profile", icon: UserRound },
     { name: "Schedule", href: "/mentor/schedule", icon: CalendarClock },
     { name: "Earnings", href: "/mentor/earnings", icon: Wallet },
     { name: "Availability", href: "/mentor/availability", icon: Clock },
@@ -66,7 +69,14 @@ const ROOTS = ["/admin", "/mentor", "/app"];
 
 const Sidebar: React.FC<SidebarProps> = ({ userRole }) => {
   const location = useLocation();
-  const items = NAVIGATION[userRole] ?? NAVIGATION.student;
+  const { user } = useAuth();
+
+  // Resolve dynamic hrefs (the profile route needs the user's id).
+  const items = (NAVIGATION[userRole] ?? NAVIGATION.student).map((item) =>
+    item.href === "/mentor/profile" && user?.id
+      ? { ...item, href: `/mentor/profile/${user.id}` }
+      : item,
+  );
 
   const isActive = (href: string) => {
     if (ROOTS.includes(href)) return location.pathname === href;
