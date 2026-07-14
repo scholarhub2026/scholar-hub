@@ -7,13 +7,20 @@ import { otpTemplate } from "../templates/otpTemplates";
 
 dotenv.config();
 
-sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
+const hasSendGrid = !!process.env.SENDGRID_API_KEY;
+const hasSmtp = !!process.env.MAIL_HOST && !!process.env.MAIL_USER;
+
+if (hasSendGrid) {
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
+}
 
 export type MailType = "otp" | "user";
 type UserPayload = { email: string; pass: string };
 
 /**
- * Send email using SendGrid (preferred) or Nodemailer fallback.
+ * Send email via SendGrid when configured, else plain SMTP (MAIL_* vars —
+ * e.g. a Gmail app password). Throws if delivery fails or nothing is
+ * configured, so callers can surface "email not sent" to the user.
  */
 export const sendMail = async (
   recipient: string,
@@ -21,36 +28,42 @@ export const sendMail = async (
   type: MailType,
   payload: string | UserPayload
 ): Promise<void> => {
-  try {
-    const html = getHtmlContent(type, payload);
+  const html = getHtmlContent(type, payload);
 
-    // ✅ Send via SendGrid
-    await sgMail.send({
+  if (!hasSendGrid && !hasSmtp) {
+    throw new Error(
+      "No email service configured (set SENDGRID_API_KEY or MAIL_HOST/MAIL_USER/MAIL_PASS)"
+    );
+  }
+
+  if (hasSendGrid) {
+    try {
+      await sgMail.send({
+        to: recipient,
+        from: process.env.MAIL_FROM!,
+        subject,
+        html,
+      });
+      console.log(`✅ Email sent to ${recipient} via SendGrid`);
+      return;
+    } catch (error: any) {
+      console.error("❌ SendGrid error:", error.response?.body || error.message);
+      if (!hasSmtp) throw new Error("Email delivery failed via SendGrid");
+      // fall through to SMTP
+    }
+  }
+
+  try {
+    const info = await transporter.sendMail({
+      from: process.env.MAIL_FROM || process.env.MAIL_USER,
       to: recipient,
-      from: process.env.MAIL_FROM!,
       subject,
       html,
     });
-
-    console.log(`✅ Email sent successfully to ${recipient} via SendGrid`);
-  } catch (error: any) {
-    console.error("❌ SendGrid error:", error.response?.body || error.message);
-
-    // 📨 Fallback to Nodemailer if SendGrid fails
-    try {
-      const mailOptions = {
-        from: process.env.MAIL_FROM!,
-        to: recipient,
-        subject,
-        html: getHtmlContent(type, payload),
-      };
-
-      const info = await transporter.sendMail(mailOptions);
-      console.log(`📬 Fallback email sent via Nodemailer: ${info.messageId}`);
-    } catch (fallbackError: any) {
-      console.error("🚨 Fallback email failed:", fallbackError.message);
-      throw new Error("Email delivery failed via both SendGrid and Nodemailer");
-    }
+    console.log(`📬 Email sent to ${recipient} via SMTP: ${info.messageId}`);
+  } catch (fallbackError: any) {
+    console.error("🚨 SMTP email failed:", fallbackError.message);
+    throw new Error("Email delivery failed");
   }
 };
 

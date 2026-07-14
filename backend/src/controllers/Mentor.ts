@@ -198,6 +198,11 @@ export const updateMentor = catchAsync(async (req: Request, res: Response) => {
   // ✅ Initialize payload
   const payload: Record<string, any> = {};
 
+  // On approval we return the generated credentials to the (admin) caller so
+  // they can be shared manually when email is unavailable/failed.
+  let approvedCredentials: { email: string; password: string } | null = null;
+  let emailSent = false;
+
   // ✅ Handle admin approval logic
   if (admin_approve) {
     const authHeader = req.headers["authorization"];
@@ -235,10 +240,13 @@ export const updateMentor = catchAsync(async (req: Request, res: Response) => {
         email: user.email,
         pass: pass,
       });
+      emailSent = true;
     } catch (err) {
       console.error("❌ Failed to send email:", err.message);
-      // Continue anyway
+      // Continue anyway — the admin gets the credentials in the response.
     }
+
+    approvedCredentials = { email: user.email, password: pass };
 
     // ✅ Set payload regardless of email success/failure
     payload.admin_approve = true;
@@ -264,5 +272,8 @@ export const updateMentor = catchAsync(async (req: Request, res: Response) => {
   return res.status(200).json({
     message: "User Details Updated Successfully",
     data: updatedUser,
+    // Present only on approval: lets the admin share credentials manually
+    // (e.g. WhatsApp) when email is not configured or delivery failed.
+    ...(approvedCredentials ? { credentials: approvedCredentials, emailSent } : {}),
   });
 });

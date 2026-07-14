@@ -25,10 +25,14 @@ export const transporter = nodemailer.createTransport({
 
 );
 
-transporter.verify((error, success) => {
-  if (error) {
-    console.error("❌ Mail server not ready:", error);
-  } else {
-    console.log("✅ Mail server ready to send messages");
-  }
-});
+// Only probe the SMTP server when SMTP is actually configured — avoids a
+// noisy startup error when running SendGrid-only or with email disabled.
+if (process.env.MAIL_HOST && process.env.MAIL_USER) {
+  transporter.verify((error) => {
+    if (error) {
+      console.error("❌ Mail server not ready:", error);
+    } else {
+      console.log("✅ Mail server ready to send messages");
+    }
+  });
+}

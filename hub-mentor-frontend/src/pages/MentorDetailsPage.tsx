@@ -77,11 +77,58 @@ const MentorDetails = () => {
       mutate(
         { id: item._id, data },
         {
-          onSuccess: () => {
+          onSuccess: (response) => {
+            const creds = response?.data?.credentials;
+            const emailSent = response?.data?.emailSent;
+
+            if (!creds) {
+              Swal.fire({
+                title: "Approved!",
+                text: `${item?.firstName || "The mentor"} has been approved.`,
+                icon: "success",
+              });
+              return;
+            }
+
+            const credsText = `Scholar Hub login\nEmail: ${creds.email}\nPassword: ${creds.password}\nLogin at: ${window.location.origin}/login`;
+
             Swal.fire({
-              title: "Approved!",
-              text: `${item?.firstName || "The mentor"} is approved — login credentials have been emailed to them.`,
-              icon: "success",
+              title: "Mentor approved!",
+              icon: emailSent ? "success" : "warning",
+              html: `
+                <p style="margin-bottom:10px;font-size:14px;color:#475569">
+                  ${
+                    emailSent
+                      ? "Credentials were emailed to the mentor. They're also shown here in case the email doesn't arrive:"
+                      : "⚠️ The credentials email could <b>not</b> be sent. Share these with the mentor manually (WhatsApp / email):"
+                  }
+                </p>
+                <div style="text-align:left;background:#f1f5f9;border-radius:10px;padding:14px;font-family:monospace;font-size:14px">
+                  <div><b>Email:</b> ${creds.email}</div>
+                  <div><b>Password:</b> ${creds.password}</div>
+                </div>
+                <p style="margin-top:10px;font-size:12px;color:#94a3b8">
+                  This password is shown only once — copy it now.
+                </p>`,
+              showCancelButton: true,
+              confirmButtonText: "Copy credentials",
+              cancelButtonText: "Close",
+              confirmButtonColor: "#2563EB",
+            }).then((r) => {
+              if (r.isConfirmed) {
+                navigator.clipboard
+                  .writeText(credsText)
+                  .then(() =>
+                    Swal.fire({
+                      title: "Copied!",
+                      text: "Credentials copied to clipboard.",
+                      icon: "success",
+                      timer: 1500,
+                      showConfirmButton: false,
+                    })
+                  )
+                  .catch(() => {});
+              }
             });
           },
           onError: (error) => {
