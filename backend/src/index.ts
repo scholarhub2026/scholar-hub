@@ -11,15 +11,21 @@ const PORT = process.env.PORT || 5000
 
 app.use(express.json({ limit: '10mb' }))
 app.use(morgan('dev'))
+
+// Allowed browser origins come from CORS_ORIGINS (comma-separated) so each
+// environment (dev host / prod host / local) sets its own frontend URL.
+// Falls back to the local Vite dev server if unset.
+const allowedOrigins = (
+  process.env.CORS_ORIGINS || 'http://localhost:8080,http://localhost:5173'
+)
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean)
+
 app.use(
   cors({
-    origin: [
-      'http://localhost:8080',
-      'https://www.scholarhub.live',
-      'https://0tlftd5r-8080.inc1.devtunnels.ms',
-      'http://192.168.1.15:8080',
-    ],
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    origin: allowedOrigins,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
   })
