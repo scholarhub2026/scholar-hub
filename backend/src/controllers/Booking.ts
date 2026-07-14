@@ -130,6 +130,25 @@ export const updateBookingController = async (req, res) => {
   }
 }
 
+export const deleteBookingController = async (req, res) => {
+  try {
+    const { bookingId } = req.params
+
+    if (!mongooseIdValidator(bookingId)) {
+      return res.status(400).json({ message: 'Invalid bookingId' })
+    }
+
+    const deleted = await Booking.findByIdAndDelete(bookingId)
+    if (!deleted) {
+      return res.status(404).json({ message: 'Booking not found' })
+    }
+
+    return res.status(200).json({ message: 'Booking deleted successfully' })
+  } catch (error) {
+    return res.status(500).json({ message: 'Server Error', error })
+  }
+}
+
 export const getBookingsForAdmin = async (req, res) => {
   try {
     const { studentId } = req.params

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Pencil, Link2, CalendarX, Search } from "lucide-react";
+import { Pencil, Link2, CalendarX, Search, Trash2 } from "lucide-react";
 import DashboardLayout from "../dashboard/DashboardLayout";
 import PaginationControl from "../ui/PaginationController";
 import {
@@ -16,6 +16,7 @@ import { roleSlug } from "@/config/roles";
 import { handleOpenModal } from "@/contexts/modal-state";
 import { useCreatePaymentLinkMutation } from "@/api/booking/create-payment-link";
 import { useUpdateBookingMutation } from "@/api/booking/update-booking";
+import { useDeleteBookingMutation } from "@/api/booking/delete-booking";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Skeleton } from "../ui/skeleton";
@@ -58,6 +59,18 @@ const BookingTable = () => {
   });
   const { mutate: createLink } = useCreatePaymentLinkMutation();
   const { mutate: updateBooking } = useUpdateBookingMutation();
+  const { mutate: deleteBooking, isPending: isDeleting } =
+    useDeleteBookingMutation();
+
+  const handleDelete = (booking) => {
+    if (
+      window.confirm(
+        `Delete this booking for ${booking.studentName || "this student"}? This can't be undone.`,
+      )
+    ) {
+      deleteBooking(booking._id);
+    }
+  };
 
   // Open Razorpay for an existing (pending) booking, then mark it paid on success.
   const payForBooking = (booking) => {
@@ -239,6 +252,17 @@ const BookingTable = () => {
                             >
                               <Link2 className="mr-1.5 h-4 w-4" />
                               Payment Link
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-slate-500 hover:text-red-600"
+                              onClick={() => handleDelete(booking)}
+                              disabled={isDeleting}
+                              title="Delete this booking"
+                            >
+                              <Trash2 className="mr-1.5 h-4 w-4" />
+                              Delete
                             </Button>
                           </div>
                         )}

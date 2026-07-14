@@ -1,5 +1,5 @@
 import {Router } from 'express'
-import { createBookingController, generatePaymentLink, getBookingsForAdmin, getMentorEarningsController, updateBookingController } from '../controllers/Booking';
+import { createBookingController, deleteBookingController, generatePaymentLink, getBookingsForAdmin, getMentorEarningsController, updateBookingController } from '../controllers/Booking';
 import crypto from 'crypto';
 import Booking from '../models/Booking';
 import { rewardReferralOnBooking } from '../utils/referral';
@@ -14,6 +14,7 @@ BookingRouter.post('/', requireAuth, requireRole('STUDENT'), createBookingContro
 BookingRouter.get('/mentor/:mentorId/earnings', requireAuth, requireRole('TUTOR','ADMIN'), getMentorEarningsController);
 BookingRouter.get('/:studentId', requireAuth, getBookingsForAdmin); // controller role-filters
 BookingRouter.put('/:bookingId', requireAuth, updateBookingController);
+BookingRouter.delete('/:bookingId', requireAuth, requireRole('ADMIN'), deleteBookingController);
 BookingRouter.post('/create-payment-link', requireAuth, requireRole('STUDENT'), generatePaymentLink);
 
 
