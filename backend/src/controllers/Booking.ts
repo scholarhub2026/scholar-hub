@@ -41,6 +41,9 @@ export const createBookingController = async (req, res) => {
     }
 
     req.body.paymentStatus = 'pending'
+    // Normalize email so a returning student is matched case-insensitively
+    // (and not re-created into a duplicate-key error).
+    req.body.email = String(req.body.email).toLowerCase().trim()
     const studentId = await Auth.findOne({ email: req.body.email }).then(
       user => user?._id
     )

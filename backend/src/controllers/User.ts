@@ -76,7 +76,8 @@ export const createUserController = catchAsync(
     ])
     if (error) return res.status(400).json({ message: error })
 
-    const { email, firstName, lastName, phoneNumber, role, password } = req.body
+    const { firstName, lastName, phoneNumber, role, password } = req.body
+    const email = String(req.body.email).toLowerCase().trim()
 
     if (!ROLES.includes(role)) {
       return res.status(400).json({ message: 'Invalid role' })
