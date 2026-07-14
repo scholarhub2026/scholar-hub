@@ -29,9 +29,9 @@ const LoginCard = () => {
     
   };
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Welcome Back</CardTitle>
+    <Card className="rounded-2xl border-slate-200/80 shadow-lg shadow-slate-900/5">
+      <CardHeader className="text-start">
+        <CardTitle className="font-display text-2xl">Welcome back</CardTitle>
         <CardDescription>Sign in to your Scholar Hub account</CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit(onSubmit)}>
@@ -76,7 +76,7 @@ const LoginCard = () => {
           </div> */}
         </CardContent>
         <CardFooter className="flex flex-col">
-          <Button type="submit" className="w-full">
+          <Button type="submit" className="h-11 w-full text-base shadow-md shadow-primary/20">
             Sign In
           </Button>
           <div className="mt-6 text-center text-sm text-muted-foreground">

@@ -29,10 +29,10 @@ const SignUpCard = () => {
   };
   const [showPassword, setShowPassword] = useState(false)
   return (
-    <Card>
+    <Card className="rounded-2xl border-slate-200/80 shadow-lg shadow-slate-900/5">
       <form onSubmit={handleSubmit(onSubmit)}>
-        <CardHeader>
-          <CardTitle>Create an Account</CardTitle>
+        <CardHeader className="text-start">
+          <CardTitle className="font-display text-2xl">Create an account</CardTitle>
           <CardDescription>
             Join Scholar Hub and start your learning journey
           </CardDescription>
@@ -109,7 +109,9 @@ const SignUpCard = () => {
           </div>
         </CardContent>
         <CardFooter className="flex flex-col">
-          <Button className="w-full">Create Account</Button>
+          <Button className="h-11 w-full text-base shadow-md shadow-primary/20">
+            Create Account
+          </Button>
           <div className="mt-6 text-center text-sm text-muted-foreground">
             Already have an account?{" "}
             <Link to="/login" className="text-primary hover:underline">
