@@ -68,6 +68,35 @@ export const createBookingController = async (req, res) => {
       req.body.studentId = studentId
     }
 
+    // Guard: don't let a student create a second *unpaid* booking that overlaps
+    // one they already have (same mentor + same class/subject). They must pay
+    // for or cancel the pending one before booking the same thing again.
+    const activeUnpaid = await Booking.find({
+      studentId: req.body.studentId,
+      mentorId: req.body.mentorId,
+      paymentStatus: 'pending',
+      bookingStatus: { $ne: 'cancelled' },
+    })
+    const newSubjects = (req.body.selectedSubjects || []).map(String)
+    const newClassId = req.body.selectedClass?.class_id?._id?.toString()
+    const hasClash = activeUnpaid.some(b => {
+      const bClassId = b.selectedClass?.class_id?._id?.toString()
+      // A full-class booking covers the whole class, so any overlap on the same
+      // class (full or individual) counts as a duplicate.
+      if (req.body.bookingType === 'full' || b.bookingType === 'full') {
+        return Boolean(bClassId && newClassId && bClassId === newClassId)
+      }
+      // Otherwise it's only a duplicate if a specific subject is booked twice.
+      const bSubjects = (b.selectedSubjects || []).map(String)
+      return newSubjects.some(s => bSubjects.includes(s))
+    })
+    if (hasClash) {
+      return res.status(409).json({
+        message:
+          'You already have a pending booking for this. Please pay for or cancel it before booking it again.',
+      })
+    }
+
     req.body.otp = generateOTP().otp
 
     const newBooking = new Booking({

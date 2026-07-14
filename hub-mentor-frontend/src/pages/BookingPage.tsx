@@ -158,9 +158,12 @@ const BookingPage = () => {
             onDismiss: () => setCurrentStep(3),
           });
         },
-        onError: (error) => {
+        onError: (error: any) => {
           console.error("API Error:", error);
-          alert("Something went wrong. Please try again.");
+          alert(
+            error?.response?.data?.message ||
+              "Something went wrong. Please try again.",
+          );
         },
       });
     } else {
