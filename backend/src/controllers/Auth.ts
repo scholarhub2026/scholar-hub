@@ -40,8 +40,9 @@ export const signupController = catchAsync(async (req: Request, res: Response) =
   const role =
     type === "admin" ? "ADMIN" : type === "tutor" ? "TUTOR" : "STUDENT";
 
-  // ✅ Step 3: Extract fields
-  const { email, phoneNumber, password, firstName, lastName } = req.body;
+  // ✅ Step 3: Extract fields (emails are case-insensitive — normalize)
+  const { phoneNumber, password, firstName, lastName } = req.body;
+  const email = String(req.body.email).toLowerCase().trim();
 
   // ✅ Step 4: Validate password strength
   if (password.length < 6) {
@@ -133,7 +134,9 @@ export const signInController = catchAsync(
       res.status(400).json({ message: error })
     }
 
-    const user = await AuthModal.findOne({ email: req.body.email })
+    const user = await AuthModal.findOne({
+      email: String(req.body.email).toLowerCase().trim(),
+    })
 
     if (!user) {
       return res.status(400).json({

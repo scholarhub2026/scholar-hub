@@ -18,10 +18,12 @@ export const createMentor = catchAsync(async (req: Request, res: Response) => {
   if (validationError) {
     return res.status(400).json({ message: validationError })
   }
-  const { email, phone } = req.body
+  const email = String(req.body.email).toLowerCase().trim()
+  const { phone } = req.body
 
   const mentorData = {
     ...req.body,
+    email,
     role: 'TUTOR',
     password: await generatePass(),
     admin_approve: false,

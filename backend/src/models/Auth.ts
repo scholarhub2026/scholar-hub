@@ -39,6 +39,10 @@ const AuthSchema = new Schema<IAuth>(
       type: String,
       unique: true,
       required: true,
+      // Emails are case-insensitive in practice — normalize so signup/login/
+      // approval all agree regardless of how the user typed it.
+      lowercase: true,
+      trim: true,
     },
     phoneNumber: {
       type: String,

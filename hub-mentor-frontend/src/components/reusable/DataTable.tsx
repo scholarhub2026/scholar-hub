@@ -73,7 +73,9 @@ const DataTable = ({
                 >
                   <TableCell className="px-4 text-slate-400">{i + 1}</TableCell>
                   {columns.map((col) => (
-                    <TableCell key={col.key} className="px-4 capitalize text-slate-700">
+                    // No blanket `capitalize` — it mangles emails (Sajan@Gmail.Com).
+                    // Columns opt in via col.className.
+                    <TableCell key={col.key} className={`px-4 text-slate-700 ${col.className ?? ""}`}>
                       {col.render ? col.render(item) : item[col.key]}
                     </TableCell>
                   ))}

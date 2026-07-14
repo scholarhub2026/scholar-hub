@@ -19,10 +19,12 @@ const MentorDetails = () => {
     {
       key: "email",
       label: "Email",
+      render: (item) => <span className="lowercase">{item.email}</span>,
     },
     {
       key: "firstName",
       label: "Name",
+      className: "capitalize",
     },
     {
       key: "phoneNumber",
