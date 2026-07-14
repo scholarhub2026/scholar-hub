@@ -16,8 +16,8 @@ const CTA = () => {
               Ready to transform your academic journey?
             </h2>
             <p className="mx-auto mt-5 max-w-2xl text-lg text-white/90">
-              Join thousands of students achieving their goals with personalized
-              mentorship from experts in their field.
+              Achieve your goals with personalized mentorship from experts in
+              their field — online or in person.
             </p>
             <div className="mt-9 flex flex-col justify-center gap-3 sm:flex-row">
               <Link to="/mentors">

@@ -1,11 +1,18 @@
 import { Button } from "@/components/ui/button";
 import { handleOpenModal } from "@/contexts/modal-state";
-import { ArrowRight, BadgeCheck, GraduationCap, Sparkles, Star } from "lucide-react";
+import {
+  ArrowRight,
+  BadgeCheck,
+  CalendarCheck,
+  GraduationCap,
+  MonitorSmartphone,
+} from "lucide-react";
 
-const stats = [
-  { value: "500+", label: "Verified mentors" },
-  { value: "10k+", label: "Sessions delivered" },
-  { value: "4.9/5", label: "Average rating" },
+// Honest early-stage value props (no invented numbers).
+const highlights = [
+  { icon: BadgeCheck, label: "Every mentor vetted" },
+  { icon: CalendarCheck, label: "Flexible scheduling" },
+  { icon: MonitorSmartphone, label: "Online & offline sessions" },
 ];
 
 const Hero = () => {
@@ -19,11 +26,6 @@ const Hero = () => {
         <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2">
           {/* Copy */}
           <div className="flex flex-col space-y-7 animate-fade-in">
-            <span className="inline-flex w-fit items-center gap-2 rounded-full border border-primary/15 bg-primary/5 px-4 py-1.5 text-sm font-medium text-primary">
-              <Sparkles className="h-4 w-4" />
-              New: Small-group sessions now live
-            </span>
-
             <h1 className="font-display text-4xl font-extrabold leading-[1.1] tracking-tight text-slate-900 md:text-5xl lg:text-6xl">
               Expert{" "}
               <span className="bg-brand-gradient bg-clip-text text-transparent">
@@ -57,14 +59,12 @@ const Hero = () => {
               </Button>
             </div>
 
-            {/* trust row */}
-            <div className="flex flex-wrap items-center gap-x-8 gap-y-3 pt-2">
-              {stats.map((s) => (
-                <div key={s.label}>
-                  <div className="font-display text-2xl font-bold text-slate-900">
-                    {s.value}
-                  </div>
-                  <div className="text-sm text-slate-500">{s.label}</div>
+            {/* value props */}
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-3 pt-2">
+              {highlights.map(({ icon: Icon, label }) => (
+                <div key={label} className="flex items-center gap-2 text-sm text-slate-600">
+                  <Icon className="h-4 w-4 text-primary" />
+                  <span className="font-medium">{label}</span>
                 </div>
               ))}
             </div>
@@ -81,15 +81,15 @@ const Hero = () => {
               <div className="absolute inset-0 bg-gradient-to-tr from-brand-indigo/30 via-transparent to-transparent" />
             </div>
 
-            {/* Floating card — rating */}
-            <div className="absolute -top-5 -right-3 max-w-[260px] rounded-2xl border border-slate-100 bg-white/95 p-4 shadow-xl backdrop-blur md:top-8 md:right-8">
+            {/* Floating card — personalized */}
+            <div className="absolute -top-5 -right-3 max-w-[280px] rounded-2xl border border-slate-100 bg-white/95 p-4 shadow-xl backdrop-blur md:top-8 md:right-8">
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50">
-                  <Star className="h-5 w-5 fill-amber-400 text-amber-400" />
+                  <CalendarCheck className="h-5 w-5 text-amber-500" />
                 </div>
                 <div>
-                  <div className="font-semibold text-slate-900">4.9 / 5 rating</div>
-                  <p className="text-xs text-slate-500">From 2,400+ reviews</p>
+                  <div className="font-semibold text-slate-900">Personalized 1-on-1</div>
+                  <p className="text-xs text-slate-500">Sessions built around you</p>
                 </div>
               </div>
             </div>
