@@ -42,7 +42,7 @@ export interface IBooking extends Document {
   selectedSubjects: string[]
   totalAmount: number
   paymentType: 'credit-card' | 'paypal' | 'upi' | 'cash' | 'bank-transfer' | ''
-  paymentStatus: 'pending' | 'completed' | 'failed'
+  paymentStatus: 'pending' | 'completed' | 'failed' | 'cancelled'
   transactionId?: string
   bookingDate?: Date | null
   createdAt?: Date
