@@ -11,6 +11,16 @@ import RenderSubjectDetails from "@/components/profile-page/RenderSubjectDetails
 import { useUpdateMentorMutation } from "@/api/mentor/update-mentor";
 import { useAuth } from "@/auth/AuthProvider";
 import { roleSlug, roleHome } from "@/config/roles";
+import PageHeader from "@/components/shared/PageHeader";
+import { cn } from "@/lib/utils";
+import { User, GraduationCap, BookOpen, CreditCard } from "lucide-react";
+
+const STEPS = [
+  { id: 1, label: "Basic Info", icon: User },
+  { id: 2, label: "Mentor Details", icon: GraduationCap },
+  { id: 3, label: "Subjects & Pricing", icon: BookOpen },
+  { id: 4, label: "Payment", icon: CreditCard },
+];
 
 const ProfilePage = () => {
   const { user, refresh } = useAuth();
@@ -133,26 +143,46 @@ const ProfilePage = () => {
 
   return (
     <DashboardLayout userRole={role}>
-      <div className="bg-white rounded-2xl shadow-xl p-8">
-        {/* Progress Bar */}
-        <div className="mb-8">
-          <div className="flex justify-between items-center mb-4">
-            <span className="text-sm font-medium text-gray-500">
-              Step {currentStep} of {getTotalSteps()}
-            </span>
-            <span className="text-sm font-medium text-blue-600">
-              {Math.round((currentStep / getTotalSteps()) * 100)}% Complete
-            </span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div
-              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${(currentStep / getTotalSteps()) * 100}%` }}
-            ></div>
-          </div>
-        </div>
-       
-        <div>
+      <PageHeader
+        title="My Profile"
+        description="Complete or update your details. Jump to any section from the left."
+      />
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[240px_1fr]">
+        {/* Left step tabs — jump directly to any section */}
+        <nav className="h-fit rounded-xl border border-slate-200/80 bg-white p-2 shadow-sm lg:sticky lg:top-20">
+          {STEPS.map((s) => {
+            const active = currentStep === s.id;
+            const Icon = s.icon;
+            return (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => setCurrentStep(s.id)}
+                className={cn(
+                  "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors",
+                  active
+                    ? "bg-primary/10 text-primary"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
+                )}
+              >
+                <span
+                  className={cn(
+                    "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
+                    active ? "bg-primary text-white" : "bg-slate-200 text-slate-600",
+                  )}
+                >
+                  {s.id}
+                </span>
+                <Icon className="hidden h-4 w-4 shrink-0 sm:inline lg:hidden xl:inline" />
+                {s.label}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Step content */}
+        <div className="rounded-xl border border-slate-200/80 bg-white p-6 shadow-sm md:p-8">
           <FormProvider {...methods}>
             <form onSubmit={handleSubmit(onSubmit)}>
               {getStepContent()}
