@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import dayjs from "dayjs";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,11 +7,28 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Loader2, Plus, X } from "lucide-react";
-import { toast } from "sonner";
+import { Clock, Loader2, Plus, X } from "lucide-react";
+import PageHeader from "@/components/shared/PageHeader";
 import { useAuth } from "@/auth/AuthProvider";
 import { useGetMentorQuery } from "@/api/mentor/get-mentor";
 import { useUpdateAvailabilityMutation } from "@/api/mentor/availability-api";
+
+// Slots are stored as ISO datetime strings so the student-facing profile can
+// render them with moment/dayjs (…format("LT") -> "10:00 AM").
+const timeToISO = (hhmm: string): string => {
+  const [h, m] = hhmm.split(":").map(Number);
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  return d.toISOString();
+};
+const fmtSlot = (iso: string): string => {
+  const d = dayjs(iso);
+  return d.isValid() ? d.format("h:mm A") : iso; // fallback for legacy free-text
+};
+const hhmmOf = (iso: string): string => {
+  const d = dayjs(iso);
+  return d.isValid() ? d.format("HH:mm") : "";
+};
 
 const MentorAvailabilityPage = () => {
   const { user } = useAuth();
@@ -19,9 +37,10 @@ const MentorAvailabilityPage = () => {
   const save = useUpdateAvailabilityMutation();
 
   const [isAvailable, setIsAvailable] = useState(true);
-  const [slots, setSlots] = useState<string[]>([]);
+  const [slots, setSlots] = useState<string[]>([]); // ISO strings
+  const [newTime, setNewTime] = useState("");
 
-  // Hydrate local editor state once the mentor doc loads.
+  // Hydrate from the mentor doc once it loads.
   useEffect(() => {
     const mentor = data?.data;
     if (!mentor) return;
@@ -29,45 +48,52 @@ const MentorAvailabilityPage = () => {
     const existing: string[] = Array.isArray(mentor.available_slot)
       ? mentor.available_slot.map((s: { time?: string }) => s?.time ?? "").filter(Boolean)
       : [];
-    setSlots(existing.length ? existing : [""]);
+    setSlots(existing);
   }, [data]);
 
-  const updateSlot = (i: number, value: string) =>
-    setSlots((prev) => prev.map((s, idx) => (idx === i ? value : s)));
-  const addSlot = () => setSlots((prev) => [...prev, ""]);
+  const addSlot = () => {
+    if (!newTime) return;
+    const alreadyThere = slots.some((s) => hhmmOf(s) === newTime);
+    if (!alreadyThere) {
+      setSlots((prev) =>
+        [...prev, timeToISO(newTime)].sort(
+          (a, b) => dayjs(a).valueOf() - dayjs(b).valueOf(),
+        ),
+      );
+    }
+    setNewTime("");
+  };
+
   const removeSlot = (i: number) => setSlots((prev) => prev.filter((_, idx) => idx !== i));
 
   const onSave = () => {
     if (!mentorId) return;
-    const cleaned = slots.map((s) => s.trim()).filter(Boolean);
     save.mutate({
       id: mentorId,
       data: {
         is_available: isAvailable,
-        available_slot: cleaned.map((time) => ({ time })),
+        available_slot: slots.map((time) => ({ time })),
       },
     });
   };
 
   return (
     <DashboardLayout userRole="mentor">
-      <div className="space-y-6 max-w-2xl">
-        <div>
-          <h1 className="text-2xl font-bold">Availability</h1>
-          <p className="text-sm text-muted-foreground">
-            Toggle whether you're taking bookings and manage your time slots.
-          </p>
-        </div>
+      <PageHeader
+        title="Availability"
+        description="Set whether you're taking bookings and the times students can book you."
+      />
 
+      <div className="max-w-2xl space-y-6">
         {isLoading ? (
-          <Skeleton className="h-40 w-full" />
+          <Skeleton className="h-64 w-full" />
         ) : (
           <>
-            <Card>
+            <Card className="rounded-xl border-slate-200/80 shadow-sm">
               <CardContent className="flex items-center justify-between py-5">
                 <div>
-                  <div className="font-medium">Accepting bookings</div>
-                  <p className="text-sm text-muted-foreground">
+                  <div className="font-semibold text-slate-800">Accepting bookings</div>
+                  <p className="text-sm text-slate-500">
                     When off, students can't book new sessions with you.
                   </p>
                 </div>
@@ -75,31 +101,54 @@ const MentorAvailabilityPage = () => {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Time slots</CardTitle>
+            <Card className="rounded-xl border-slate-200/80 shadow-sm">
+              <CardHeader className="border-b border-slate-100 py-4">
+                <CardTitle className="font-display text-base">Time slots</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                {slots.map((slot, i) => (
-                  <div key={i} className="flex items-center gap-2">
+              <CardContent className="space-y-5 py-5">
+                {/* Add a slot */}
+                <div className="flex items-end gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-sm">Add a time</Label>
                     <Input
-                      value={slot}
-                      placeholder="e.g. Mon 10:00–11:00 AM"
-                      onChange={(e) => updateSlot(i, e.target.value)}
+                      type="time"
+                      value={newTime}
+                      onChange={(e) => setNewTime(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addSlot())}
+                      className="w-44"
                     />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-muted-foreground"
-                      onClick={() => removeSlot(i)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
                   </div>
-                ))}
-                <Button variant="outline" size="sm" onClick={addSlot}>
-                  <Plus className="mr-2 h-4 w-4" /> Add slot
-                </Button>
+                  <Button type="button" variant="outline" onClick={addSlot} disabled={!newTime}>
+                    <Plus className="mr-1.5 h-4 w-4" /> Add slot
+                  </Button>
+                </div>
+
+                {/* Slot chips */}
+                {slots.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-400">
+                    No time slots yet. Add the times you're available above.
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {slots.map((s, i) => (
+                      <span
+                        key={i}
+                        className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 py-1.5 pl-3 pr-1.5 text-sm font-medium text-primary"
+                      >
+                        <Clock className="h-3.5 w-3.5" />
+                        {fmtSlot(s)}
+                        <button
+                          type="button"
+                          onClick={() => removeSlot(i)}
+                          className="ml-0.5 rounded-full p-0.5 text-primary/70 transition hover:bg-primary/20 hover:text-primary"
+                          aria-label="Remove slot"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
 
