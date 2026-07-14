@@ -1,29 +1,16 @@
-
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import {
-  NavigationMenu,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-} from '@/components/ui/navigation-menu';
-import { cn } from '@/lib/utils';
-import { useIsMobile } from '@/hooks/use-mobile';
-import {
-  Sheet,
-  SheetContent,
-  SheetTrigger
-} from '@/components/ui/sheet';
-import { Menu } from 'lucide-react';
-import LanguageSwitcher from './LanguageSwitcher';
-import { useLanguage } from '@/contexts/LanguageContext';
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Menu } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
+import Logo from "@/components/brand/Logo";
 
 const routes = [
-  { href: '/', label: 'nav.home' },
-  { href: '/mentors', label: 'nav.mentors' },
-  { href: '/about', label: 'nav.about' },
-  // { href: '/resources', label: 'Resources' },
+  { href: "/", label: "nav.home" },
+  { href: "/mentors", label: "nav.mentors" },
+  { href: "/about", label: "nav.about" },
 ];
 
 const MainNav = () => {
@@ -31,53 +18,53 @@ const MainNav = () => {
   const { t } = useLanguage();
 
   return (
-    <div className="border-b">
+    <header className="sticky top-0 z-50 border-b border-border/60 bg-white/80 backdrop-blur-md">
       <div className="container-wide flex h-16 items-center justify-between">
-        <Link to="/" className="font-bold text-2xl text-primary flex items-center gap-2">
-          {/* <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
-            <span className="text-white text-sm">SH</span>
-          </div> */}
-          Scholar Hub 
+        <Link to="/" className="flex items-center gap-2.5">
+          <Logo className="h-10" />
+          <span className="font-display text-xl font-extrabold tracking-tight text-slate-900">
+            Scholar<span className="text-primary">Hub</span>
+          </span>
         </Link>
-        
+
         {isMobile ? (
           <MobileNav />
         ) : (
-          <div className="flex items-center space-x-4">
-            <NavigationMenu>
-              <NavigationMenuList>
-                {routes.map((route) => (
-                  <NavigationMenuItem key={route.href}>
-                    <Link to={route.href}>
-                      <NavigationMenuLink className={cn(
-                        "group inline-flex h-10 w-max items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[active]:bg-accent/50 data-[state=open]:bg-accent/50"
-                      )}>
-                        {route.label.startsWith('nav.') ? t(route.label) : route.label}
-                      </NavigationMenuLink>
-                    </Link>
-                  </NavigationMenuItem>
-                ))}
-              </NavigationMenuList>
-            </NavigationMenu>
-            <div className="flex items-center space-x-2">
-              {/* <LanguageSwitcher /> */}
+          <div className="flex items-center gap-1">
+            <nav className="flex items-center">
+              {routes.map((route) => (
+                <Link
+                  key={route.href}
+                  to={route.href}
+                  className={cn(
+                    "rounded-md px-4 py-2 text-sm font-medium text-slate-600 transition-colors",
+                    "hover:text-primary hover:bg-primary/5",
+                  )}
+                >
+                  {route.label.startsWith("nav.") ? t(route.label) : route.label}
+                </Link>
+              ))}
+            </nav>
+            <div className="ml-3 flex items-center gap-2">
               <Link to="/login">
-                <Button variant="outline">{t('nav.login')}</Button>
+                <Button variant="ghost" className="text-slate-700">
+                  {t("nav.login")}
+                </Button>
               </Link>
               <Link to="/signup">
-                <Button>{t('nav.signup')}</Button>
+                <Button className="shadow-sm shadow-primary/20">{t("nav.signup")}</Button>
               </Link>
             </div>
           </div>
         )}
       </div>
-    </div>
+    </header>
   );
 };
 
 const MobileNav = () => {
   const { t } = useLanguage();
-  
+
   return (
     <Sheet>
       <SheetTrigger asChild>
@@ -87,31 +74,32 @@ const MobileNav = () => {
         </Button>
       </SheetTrigger>
       <SheetContent side="right">
-        <div className="flex flex-col gap-6 pt-10">
-          <Link to="/" className="font-bold text-2xl text-primary flex items-center gap-2">
-            {/* <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
-              <span className="text-white text-sm">SH</span>
-            </div> */}
-            Scholar Hub 
+        <div className="flex flex-col gap-6 pt-8">
+          <Link to="/" className="flex items-center gap-2.5">
+            <Logo className="h-9" />
+            <span className="font-display text-lg font-extrabold tracking-tight text-slate-900">
+              Scholar<span className="text-primary">Hub</span>
+            </span>
           </Link>
-          <nav className="flex flex-col gap-4">
+          <nav className="flex flex-col gap-1">
             {routes.map((route) => (
               <Link
                 key={route.href}
                 to={route.href}
-                className="text-lg font-medium hover:text-primary transition"
+                className="rounded-md px-3 py-2 text-base font-medium text-slate-700 transition hover:bg-primary/5 hover:text-primary"
               >
-                {route.label.startsWith('nav.') ? t(route.label) : route.label}
+                {route.label.startsWith("nav.") ? t(route.label) : route.label}
               </Link>
             ))}
           </nav>
-          <div className="flex flex-col gap-2 mt-4">
-            
+          <div className="mt-2 flex flex-col gap-2">
             <Link to="/login">
-              <Button variant="outline" className="w-full">{t('nav.login')}</Button>
+              <Button variant="outline" className="w-full">
+                {t("nav.login")}
+              </Button>
             </Link>
             <Link to="/signup">
-              <Button className="w-full">{t('nav.signup')}</Button>
+              <Button className="w-full">{t("nav.signup")}</Button>
             </Link>
           </div>
         </div>

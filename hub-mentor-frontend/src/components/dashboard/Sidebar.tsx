@@ -2,6 +2,7 @@ import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import type { RoleSlug } from "@/config/roles";
+import Logo from "@/components/brand/Logo";
 import {
   LayoutDashboard,
   Users,
@@ -74,12 +75,12 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole }) => {
 
   return (
     <div className="min-h-screen bg-white border-r">
-      <div className="p-4 font-bold flex items-center gap-2 text-primary border-b">
-        <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
-          <span className="text-white text-sm">SH</span>
-        </div>
-        <span>Scholar Hub</span>
-      </div>
+      <Link to="/" className="flex items-center gap-2 border-b p-4">
+        <Logo className="h-9" />
+        <span className="font-display text-lg font-extrabold tracking-tight text-slate-900">
+          Scholar<span className="text-primary">Hub</span>
+        </span>
+      </Link>
       <div className="p-4">
         <nav className="flex flex-col space-y-1">
           {items.map((item) => {

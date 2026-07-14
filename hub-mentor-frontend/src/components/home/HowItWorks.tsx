@@ -1,72 +1,81 @@
+import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
+import { Search, CalendarCheck, Video, LineChart, type LucideIcon } from "lucide-react";
 
-import React from 'react';
-import { Button } from '@/components/ui/button';
-import { Link } from 'react-router-dom';
+type Step = { number: string; icon: LucideIcon; title: string; description: string };
 
-const steps = [
+const steps: Step[] = [
   {
-    number: '01',
-    title: 'Find Your Ideal Mentor',
+    number: "01",
+    icon: Search,
+    title: "Find your mentor",
     description:
-      'Browse our extensive network of verified mentors, filter by subject, expertise, and availability to find your perfect match.',
+      "Browse verified mentors and filter by subject, expertise, and availability to find your match.",
   },
   {
-    number: '02',
-    title: 'Schedule a Session',
+    number: "02",
+    icon: CalendarCheck,
+    title: "Schedule a session",
     description:
-      'Book a one-on-one or group session with your chosen mentor at a time that works for you using our calendar system.',
+      "Book a one-on-one or group session at a time that works for you with our calendar.",
   },
   {
-    number: '03',
-    title: 'Connect and Learn',
+    number: "03",
+    icon: Video,
+    title: "Connect and learn",
     description:
-      'Meet with your mentor via our platform for personalized guidance, homework help, or exam preparation.',
+      "Meet your mentor for personalized guidance, homework help, or exam preparation.",
   },
   {
-    number: '04',
-    title: 'Track Your Progress',
+    number: "04",
+    icon: LineChart,
+    title: "Track your progress",
     description:
-      'Review session notes, complete assignments, and monitor your improvement through our dashboard.',
+      "Review session notes, complete assignments, and monitor improvement over time.",
   },
 ];
 
 const HowItWorks = () => {
   return (
-    <section className="bg-mentor-light py-16 md:py-24">
+    <section className="bg-slate-50 py-20 md:py-28">
       <div className="container-wide">
-        <div className="max-w-3xl mx-auto text-center mb-16">
-          <h2 className="text-3xl font-bold sm:text-4xl mb-4">
-            How Scholar Hub Works
+        <div className="mx-auto mb-14 max-w-2xl text-center">
+          <p className="mb-3 text-sm font-semibold uppercase tracking-wider text-primary">
+            How it works
+          </p>
+          <h2 className="text-3xl font-bold text-slate-900 sm:text-4xl">
+            Get started in four simple steps
           </h2>
-          <p className="text-lg text-muted-foreground">
-            Getting started with Scholar Hub is easy. Our platform is designed to connect you with the right mentor in just a few simple steps.
+          <p className="mt-4 text-lg text-slate-600">
+            From finding the right mentor to tracking your growth — the whole journey
+            is built to be effortless.
           </p>
         </div>
-        
-        <div className="relative">
-          {/* Connecting line */}
-          <div className="hidden lg:block absolute top-1/2 left-0 right-0 h-1 bg-mentor-primary/20 -translate-y-1/2" />
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 relative">
-            {steps.map((step, index) => (
-              <div
-                key={index}
-                className="bg-white p-8 rounded-xl shadow-sm relative z-10"
-              >
-                <div className="h-12 w-12 rounded-full bg-mentor-primary flex items-center justify-center text-white font-bold mb-6">
-                  {step.number}
-                </div>
-                <h3 className="text-xl font-semibold mb-3">{step.title}</h3>
-                <p className="text-muted-foreground">{step.description}</p>
+
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {steps.map(({ number, icon: Icon, title, description }) => (
+            <div
+              key={number}
+              className="relative rounded-2xl border border-slate-100 bg-white p-7 shadow-sm"
+            >
+              <span className="pointer-events-none absolute right-5 top-4 font-display text-5xl font-extrabold text-slate-100">
+                {number}
+              </span>
+              <div className="relative mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <Icon className="h-6 w-6" />
               </div>
-            ))}
-          </div>
+              <h3 className="relative mb-2 text-lg font-semibold text-slate-900">
+                {title}
+              </h3>
+              <p className="relative text-sm text-slate-600">{description}</p>
+            </div>
+          ))}
         </div>
-        
+
         <div className="mt-12 text-center">
           <Link to="/about">
-            <Button variant="outline" className="text-base">
-              Learn More About Our Process
+            <Button variant="outline" size="lg" className="text-base">
+              Learn more about our process
             </Button>
           </Link>
         </div>

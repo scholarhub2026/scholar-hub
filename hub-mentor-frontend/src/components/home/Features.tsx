@@ -1,97 +1,82 @@
+import {
+  Target,
+  ShieldCheck,
+  CalendarDays,
+  MessagesSquare,
+  Users,
+  TrendingUp,
+  type LucideIcon,
+} from "lucide-react";
 
-import React from 'react';
+type Feature = { icon: LucideIcon; title: string; description: string };
 
-const features = [
+const features: Feature[] = [
   {
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-10 w-10 text-primary">
-        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-      </svg>
-    ),
-    title: 'Personalized Learning',
+    icon: Target,
+    title: "Personalized learning",
     description:
-      'Our mentors create custom learning plans tailored to your specific learning style and goals.',
+      "Mentors build a custom plan around your learning style, pace, and academic goals.",
   },
   {
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-10 w-10 text-primary">
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-      </svg>
-    ),
-    title: 'Verified Experts',
+    icon: ShieldCheck,
+    title: "Verified experts",
     description:
-      'All our mentors undergo a rigorous verification process to ensure they are qualified and experienced.',
+      "Every mentor passes a rigorous verification process, so you learn from qualified pros.",
   },
   {
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-10 w-10 text-primary">
-        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-        <line x1="16" y1="2" x2="16" y2="6"></line>
-        <line x1="8" y1="2" x2="8" y2="6"></line>
-        <line x1="3" y1="10" x2="21" y2="10"></line>
-      </svg>
-    ),
-    title: 'Flexible Scheduling',
+    icon: CalendarDays,
+    title: "Flexible scheduling",
     description:
-      'Book sessions when it works for you with our easy-to-use calendar and scheduling system.',
+      "Book sessions when it suits you with an easy, conflict-free calendar.",
   },
   {
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-10 w-10 text-primary">
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-      </svg>
-    ),
-    title: 'Real-Time Feedback',
+    icon: MessagesSquare,
+    title: "Real-time feedback",
     description:
-      'Get instant feedback during sessions and detailed follow-ups to track your progress.',
+      "Get guidance during sessions and detailed follow-ups to keep improving.",
   },
   {
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-10 w-10 text-primary">
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-        <circle cx="9" cy="7" r="4"></circle>
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-      </svg>
-    ),
-    title: 'Group Sessions',
+    icon: Users,
+    title: "Group sessions",
     description:
-      'Learn collaboratively with others in small-group sessions that foster peer learning at a reduced cost.',
+      "Learn collaboratively in small groups that foster peer learning at a lower cost.",
   },
   {
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-10 w-10 text-primary">
-        <path d="m22 2-7 20-4-9-9-4Z"></path>
-        <path d="M22 2 11 13"></path>
-      </svg>
-    ),
-    title: 'Goal Tracking',
+    icon: TrendingUp,
+    title: "Progress tracking",
     description:
-      'Set academic goals and track your progress with our intuitive dashboard and reporting tools.',
+      "Set goals and watch your improvement through an intuitive dashboard.",
   },
 ];
 
 const Features = () => {
   return (
-    <section className="bg-white py-16 md:py-24">
+    <section className="bg-white py-20 md:py-28">
       <div className="container-wide">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold sm:text-4xl mb-4">
-            A Better Way to Learn and Grow
+        <div className="mx-auto mb-14 max-w-2xl text-center">
+          <p className="mb-3 text-sm font-semibold uppercase tracking-wider text-primary">
+            Why Scholar Hub
+          </p>
+          <h2 className="text-3xl font-bold text-slate-900 sm:text-4xl">
+            A better way to learn and grow
           </h2>
-          <p className="max-w-2xl mx-auto text-lg text-muted-foreground">
-            Scholar Hub offers a comprehensive platform designed to help students excel academically and develop personally.
+          <p className="mt-4 text-lg text-slate-600">
+            Everything you need to excel academically — expert guidance, structure,
+            and the tools to stay on track.
           </p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {features.map((feature, index) => (
-            <div key={index} className="bg-muted p-8 rounded-xl hover:shadow-md transition-all">
-              <div className="h-16 w-16 rounded-xl bg-mentor-light flex items-center justify-center mb-6">
-                {feature.icon}
+
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {features.map(({ icon: Icon, title, description }) => (
+            <div
+              key={title}
+              className="group rounded-2xl border border-slate-100 bg-white p-7 shadow-sm transition-all hover:-translate-y-1 hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5"
+            >
+              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-gradient text-white shadow-md shadow-primary/20">
+                <Icon className="h-6 w-6" />
               </div>
-              <h3 className="text-xl font-semibold mb-3">{feature.title}</h3>
-              <p className="text-muted-foreground">{feature.description}</p>
+              <h3 className="mb-2 text-xl font-semibold text-slate-900">{title}</h3>
+              <p className="text-slate-600">{description}</p>
             </div>
           ))}
         </div>

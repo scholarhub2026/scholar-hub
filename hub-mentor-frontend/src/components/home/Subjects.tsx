@@ -105,28 +105,37 @@ const subjects = [
 
 const Subjects = () => {
   return (
-    <section className="py-16 md:py-24">
+    <section className="bg-white py-20 md:py-28">
       <div className="container-wide">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold sm:text-4xl mb-4">
-            Explore Popular Subjects
+        <div className="mx-auto mb-14 max-w-2xl text-center">
+          <p className="mb-3 text-sm font-semibold uppercase tracking-wider text-primary">
+            Subjects
+          </p>
+          <h2 className="text-3xl font-bold text-slate-900 sm:text-4xl">
+            Explore popular subjects
           </h2>
-          <p className="max-w-2xl mx-auto text-lg text-muted-foreground">
-            Our mentors specialize in a wide range of academic subjects to help you succeed in any area.
+          <p className="mt-4 text-lg text-slate-600">
+            Our mentors specialize across a wide range of academic subjects to help
+            you succeed in any area.
           </p>
         </div>
-        
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
           {subjects.map((subject, index) => (
             <Link
               key={index}
               to={`/mentors?subject=${subject.name}`}
-              className="flex flex-col items-center p-6 bg-white border rounded-xl hover:shadow-md transition-all text-center"
+              className="group flex flex-col items-center rounded-2xl border border-slate-100 bg-white p-6 text-center shadow-sm transition-all hover:-translate-y-1 hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5"
             >
-              <div className={cn("h-16 w-16 rounded-full flex items-center justify-center mb-4", subject.color)}>
+              <div
+                className={cn(
+                  "mb-4 flex h-16 w-16 items-center justify-center rounded-2xl transition-transform group-hover:scale-105",
+                  subject.color,
+                )}
+              >
                 {subject.icon}
               </div>
-              <h3 className="font-medium">{subject.name}</h3>
+              <h3 className="font-semibold text-slate-800">{subject.name}</h3>
             </Link>
           ))}
         </div>
