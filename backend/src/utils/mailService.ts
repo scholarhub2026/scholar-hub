@@ -47,8 +47,10 @@ export const sendMail = async (
       console.log(`✅ Email sent to ${recipient} via SendGrid`);
       return;
     } catch (error: any) {
+      const reason =
+        error.response?.body?.errors?.[0]?.message || error.message || "unknown";
       console.error("❌ SendGrid error:", error.response?.body || error.message);
-      if (!hasSmtp) throw new Error("Email delivery failed via SendGrid");
+      if (!hasSmtp) throw new Error(`SendGrid: ${reason}`);
       // fall through to SMTP
     }
   }
@@ -63,7 +65,8 @@ export const sendMail = async (
     console.log(`📬 Email sent to ${recipient} via SMTP: ${info.messageId}`);
   } catch (fallbackError: any) {
     console.error("🚨 SMTP email failed:", fallbackError.message);
-    throw new Error("Email delivery failed");
+    // Surface the real reason (e.g. "Invalid login: 535 …") to the caller.
+    throw new Error(`SMTP: ${fallbackError?.message || "delivery failed"}`);
   }
 };
 
