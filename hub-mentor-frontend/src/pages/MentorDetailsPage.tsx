@@ -5,10 +5,11 @@ import StatusBadge from "@/components/shared/StatusBadge";
 import DataTable from "@/components/reusable/DataTable";
 import Swal from "sweetalert2";
 
-import { Eye, GemIcon, Pencil, Trash2 } from "lucide-react";
+import { BadgeCheck, Eye } from "lucide-react";
 import React, { useState } from "react";
 import { useUpdateMentorMutation } from "@/api/mentor/update-mentor";
 import { handleOpenModal } from "@/contexts/modal-state";
+import { Button } from "@/components/ui/button";
 
 const MentorDetails = () => {
   const [page, setPage] = useState(1);
@@ -41,13 +42,13 @@ const MentorDetails = () => {
   };
 
   Swal.fire({
-    title: "Are you sure?",
-    text: `Do you want to promote ${item?.firstName || "this user"} as mentor?`,
-    icon: "warning",
+    title: "Approve this mentor?",
+    text: `${item?.firstName || "This applicant"} will be approved and their login credentials will be emailed to ${item?.email || "them"}.`,
+    icon: "question",
     showCancelButton: true,
-    confirmButtonColor: "#3085d6",
+    confirmButtonColor: "#2563EB",
     cancelButtonColor: "#d33",
-    confirmButtonText: "Yes, promote!",
+    confirmButtonText: "Yes, approve",
   }).then((result) => {
     if (result.isConfirmed) {
       mutate(
@@ -55,8 +56,8 @@ const MentorDetails = () => {
         {
           onSuccess: () => {
             Swal.fire({
-              title: "Promoted!",
-              text: `${item?.firstName || "The user"} has been promoted to mentor.`,
+              title: "Approved!",
+              text: `${item?.firstName || "The mentor"} is approved — login credentials have been emailed to them.`,
               icon: "success",
             });
           },
@@ -107,16 +108,20 @@ const MentorDetails = () => {
         onEdit={(item) => console.log("Edit", item)}
         // onDelete={(item) => console.log("Delete", item)}
         renderActions={(item) => (
-          <div className="flex gap-2 ">
-            {/* <button onClick={() => console.log("Edit", item)}>
-              <Pencil className="w-4 h-4 text-blue-500" />
-            </button> */}
-            <button onClick={() => handleOpenModal("mentorProfile", item)}>
-              <Eye className="w-4 h-4 text-blue-500" />
-            </button>
-            <button onClick={() => handlePromoteAdmin(item)}>
-              <GemIcon className="w-4 h-4 text-green-500" />
-            </button>
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-slate-500 hover:text-primary"
+              onClick={() => handleOpenModal("mentorProfile", item)}
+            >
+              <Eye className="mr-1.5 h-4 w-4" />
+              View
+            </Button>
+            <Button size="sm" onClick={() => handlePromoteAdmin(item)}>
+              <BadgeCheck className="mr-1.5 h-4 w-4" />
+              Approve
+            </Button>
           </div>
         )}
         pagination={{
@@ -136,17 +141,15 @@ const MentorDetails = () => {
         onEdit={(item) => console.log("Edit", item)}
         // onDelete={(item) => console.log("Delete", item)}
         renderActions={(item) => (
-          <div className="flex gap-2 ">
-            {/* <button onClick={() => console.log("Edit", item)}>
-              <Pencil className="w-4 h-4 text-blue-500" />
-            </button> */}
-            <button onClick={() => handleOpenModal("mentorProfile", item)}>
-              <Eye className="w-4 h-4 text-blue-500" />
-            </button>
-            {/* <button onClick={() => handlePromoteAdmin(item)}>
-              <GemIcon className="w-4 h-4 text-green-500" />
-            </button> */}
-          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-slate-500 hover:text-primary"
+            onClick={() => handleOpenModal("mentorProfile", item)}
+          >
+            <Eye className="mr-1.5 h-4 w-4" />
+            View
+          </Button>
         )}
         pagination={{
           currentPage: page,
