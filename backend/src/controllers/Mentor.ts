@@ -202,6 +202,7 @@ export const updateMentor = catchAsync(async (req: Request, res: Response) => {
   // they can be shared manually when email is unavailable/failed.
   let approvedCredentials: { email: string; password: string } | null = null;
   let emailSent = false;
+  let emailError: string | null = null;
 
   // ✅ Handle admin approval logic
   if (admin_approve) {
@@ -234,8 +235,9 @@ export const updateMentor = catchAsync(async (req: Request, res: Response) => {
         pass: pass,
       });
       emailSent = true;
-    } catch (err) {
-      console.error("❌ Failed to send email:", err.message);
+    } catch (err: any) {
+      emailError = err?.message ?? "unknown error";
+      console.error("❌ Failed to send email:", emailError);
       // Continue anyway — the admin gets the credentials in the response.
     }
 
@@ -267,6 +269,61 @@ export const updateMentor = catchAsync(async (req: Request, res: Response) => {
     data: updatedUser,
     // Present only on approval: lets the admin share credentials manually
     // (e.g. WhatsApp) when email is not configured or delivery failed.
-    ...(approvedCredentials ? { credentials: approvedCredentials, emailSent } : {}),
+    ...(approvedCredentials
+      ? { credentials: approvedCredentials, emailSent, emailError }
+      : {}),
   });
 });
+
+/**
+ * POST /api/mentor/:id/resend-credentials
+ * Admin — regenerate a mentor's password and (try to) email it again. Always
+ * returns the new credentials so the admin can share them manually if email
+ * is down. Use when a mentor lost their password or the email never arrived.
+ */
+export const resendMentorCredentials = catchAsync(
+  async (req: Request, res: Response) => {
+    const { id } = req.params
+    if (!mongooseIdValidator(id)) {
+      return res.status(400).json({ message: 'Invalid Id' })
+    }
+
+    const authedUser = (req as { user?: { _id?: string; role?: string } }).user
+    if (!authedUser?._id) {
+      return res.status(401).json({ message: 'Session expired. Please try again.' })
+    }
+    if (authedUser.role !== 'ADMIN') {
+      return res.status(403).json({ message: 'You do not have permission' })
+    }
+
+    const mentor = await AuthModal.findOne({ _id: id, role: 'TUTOR' })
+    if (!mentor) {
+      return res.status(404).json({ message: 'Mentor not found' })
+    }
+
+    const pass = await generatePass()
+    mentor.password = await encryptPassword(pass)
+    mentor.is_first_login = true
+    await mentor.save()
+
+    let emailSent = false
+    let emailError: string | null = null
+    try {
+      await sendMail(mentor.email, 'Your Login credentials', 'user', {
+        email: mentor.email,
+        pass,
+      })
+      emailSent = true
+    } catch (err: any) {
+      emailError = err?.message ?? 'unknown error'
+      console.error('❌ Failed to resend credentials email:', emailError)
+    }
+
+    return res.status(200).json({
+      message: 'Credentials regenerated',
+      credentials: { email: mentor.email, password: pass },
+      emailSent,
+      emailError,
+    })
+  }
+)

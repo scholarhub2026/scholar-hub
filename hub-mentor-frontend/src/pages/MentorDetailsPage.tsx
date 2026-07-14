@@ -5,12 +5,14 @@ import StatusBadge from "@/components/shared/StatusBadge";
 import DataTable from "@/components/reusable/DataTable";
 import Swal from "sweetalert2";
 
-import { BadgeCheck, Eye, Trash2 } from "lucide-react";
+import { BadgeCheck, Eye, KeyRound, Trash2 } from "lucide-react";
 import React, { useState } from "react";
 import { useUpdateMentorMutation } from "@/api/mentor/update-mentor";
 import { useDeleteMentorMutation } from "@/api/mentor/delete-mentor";
+import { useResendCredentialsMutation } from "@/api/mentor/resend-credentials";
 import { handleOpenModal } from "@/contexts/modal-state";
 import { Button } from "@/components/ui/button";
+import { showCredentialsDialog } from "@/components/mentors/credentialsDialog";
 
 const MentorDetails = () => {
   const [page, setPage] = useState(1);
@@ -39,6 +41,29 @@ const MentorDetails = () => {
 
   const {mutate}=useUpdateMentorMutation()
   const { mutate: deleteMentor } = useDeleteMentorMutation();
+  const { mutate: resendCreds } = useResendCredentialsMutation();
+
+  /** Regenerate + resend a mentor's login credentials. */
+  const handleResendCredentials = (item) => {
+    Swal.fire({
+      title: "Resend credentials?",
+      text: `A new password will be generated for ${item?.firstName || "this mentor"} and emailed to ${item?.email || "them"}. Their old password will stop working.`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#2563EB",
+      confirmButtonText: "Yes, resend",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        resendCreds(item._id, {
+          onSuccess: (data) => {
+            if (data?.credentials) {
+              showCredentialsDialog(data.credentials, data.emailSent, data.emailError);
+            }
+          },
+        });
+      }
+    });
+  };
 
   /** Confirm + delete. Used as "Reject" for applications, "Remove" for approved. */
   const handleRemoveMentor = (item, isPending: boolean) => {
@@ -79,8 +104,6 @@ const MentorDetails = () => {
         {
           onSuccess: (response) => {
             const creds = response?.data?.credentials;
-            const emailSent = response?.data?.emailSent;
-
             if (!creds) {
               Swal.fire({
                 title: "Approved!",
@@ -89,47 +112,11 @@ const MentorDetails = () => {
               });
               return;
             }
-
-            const credsText = `Scholar Hub login\nEmail: ${creds.email}\nPassword: ${creds.password}\nLogin at: ${window.location.origin}/login`;
-
-            Swal.fire({
-              title: "Mentor approved!",
-              icon: emailSent ? "success" : "warning",
-              html: `
-                <p style="margin-bottom:10px;font-size:14px;color:#475569">
-                  ${
-                    emailSent
-                      ? "Credentials were emailed to the mentor. They're also shown here in case the email doesn't arrive:"
-                      : "⚠️ The credentials email could <b>not</b> be sent. Share these with the mentor manually (WhatsApp / email):"
-                  }
-                </p>
-                <div style="text-align:left;background:#f1f5f9;border-radius:10px;padding:14px;font-family:monospace;font-size:14px">
-                  <div><b>Email:</b> ${creds.email}</div>
-                  <div><b>Password:</b> ${creds.password}</div>
-                </div>
-                <p style="margin-top:10px;font-size:12px;color:#94a3b8">
-                  This password is shown only once — copy it now.
-                </p>`,
-              showCancelButton: true,
-              confirmButtonText: "Copy credentials",
-              cancelButtonText: "Close",
-              confirmButtonColor: "#2563EB",
-            }).then((r) => {
-              if (r.isConfirmed) {
-                navigator.clipboard
-                  .writeText(credsText)
-                  .then(() =>
-                    Swal.fire({
-                      title: "Copied!",
-                      text: "Credentials copied to clipboard.",
-                      icon: "success",
-                      timer: 1500,
-                      showConfirmButton: false,
-                    })
-                  )
-                  .catch(() => {});
-              }
-            });
+            showCredentialsDialog(
+              creds,
+              response?.data?.emailSent,
+              response?.data?.emailError,
+            );
           },
           onError: (error) => {
             Swal.fire({
@@ -229,6 +216,16 @@ const MentorDetails = () => {
             >
               <Eye className="mr-1.5 h-4 w-4" />
               View
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-slate-500 hover:text-primary"
+              onClick={() => handleResendCredentials(item)}
+              title="Regenerate and resend login credentials"
+            >
+              <KeyRound className="mr-1.5 h-4 w-4" />
+              Resend
             </Button>
             <Button
               variant="ghost"
