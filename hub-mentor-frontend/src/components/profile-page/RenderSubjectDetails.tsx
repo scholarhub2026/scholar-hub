@@ -130,13 +130,23 @@ export default function RenderSubjectDetails() {
       <div className="bg-white rounded-xl">
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            Mentor Details
+            Subjects &amp; Pricing
           </h2>
-          <p className="text-gray-600">Tell us about your expertise</p>
+          <p className="text-gray-600">
+            Choose the classes and subjects you teach, and set your price for each
+          </p>
         </div>
 
         <section>
           <h2 className="text-lg font-semibold mb-4">Subjects per Class</h2>
+
+          {classes.length === 0 && (
+            <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-500">
+              No classes are available yet. An administrator needs to add Classes and
+              Subjects before you can pick what you teach. You can skip this step for
+              now and come back later.
+            </div>
+          )}
 
           <div className="space-y-4">
             {classes.map((cls) => (

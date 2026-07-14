@@ -1,20 +1,20 @@
 import { useEffect, useState } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { useGetMentorQuery } from "@/api/mentor/get-mentor";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { FormProvider, useForm } from "react-hook-form";
 import NavigationButton from "@/components/profile-page/NavigationButton";
 import RenderBasicInfo from "@/components/profile-page/renderBasicInfo";
 import RenderMentorDetails from "@/components/profile-page/RenderMentorDetails";
 import RenderPaymentDetails from "@/components/profile-page/RengerPaymentDetails";
 import RenderSubjectDetails from "@/components/profile-page/RenderSubjectDetails";
-import { set } from "date-fns";
 import { useUpdateMentorMutation } from "@/api/mentor/update-mentor";
 import { useAuth } from "@/auth/AuthProvider";
-import { roleSlug } from "@/config/roles";
+import { roleSlug, roleHome } from "@/config/roles";
 
 const ProfilePage = () => {
-  const { user } = useAuth();
+  const { user, refresh } = useAuth();
+  const navigate = useNavigate();
   const role = roleSlug(user?.role);
   const methods = useForm({
     mode: "onSubmit",
@@ -80,13 +80,23 @@ const ProfilePage = () => {
     id,
   });
 
-  const onSubmit = (data) => {
-    
-    data.is_first_login=false
-    mutate({
-      id,
-      data,
-    });
+  const onSubmit = (formData) => {
+    mutate(
+      {
+        id,
+        // Mark the profile complete so the "incomplete" banner clears and the
+        // mentor becomes visible to students.
+        data: { ...formData, is_first_login: false, completed_profile: true },
+      },
+      {
+        onSuccess: async () => {
+          // Refresh the session so the in-memory user reflects the completion,
+          // then send the mentor to their dashboard.
+          await refresh();
+          navigate(roleHome(user?.role));
+        },
+      },
+    );
   };
 
   useEffect(() => {

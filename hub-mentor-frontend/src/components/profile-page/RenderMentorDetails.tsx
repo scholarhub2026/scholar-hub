@@ -1,9 +1,9 @@
 import { ProfileFormData } from "@/types/profilePage";
 import { useFormContext, Controller } from "react-hook-form";
 import { Label } from "../ui/label";
-import { FileText, GraduationCap, MapPin, MessageSquare } from "lucide-react";
-import { Textarea } from "../ui/textarea";
+import { FileText, GraduationCap, Loader2, MapPin, Upload } from "lucide-react";
 import { Input } from "../ui/input";
+import { useUploadMediaMutation } from "@/api/upload/upload-image";
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 
@@ -12,8 +12,21 @@ const RenderMentorDetails = () => {
     register,
     watch,
     control,
+    setValue,
     formState: { errors },
   } = useFormContext<ProfileFormData>();
+
+  const { mutate: uploadMedia, isPending: uploadingId } = useUploadMediaMutation();
+  const idProof = watch("id_proof");
+
+  const handleIdUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    uploadMedia(file, {
+      onSuccess: (data: { url: string }) =>
+        setValue("id_proof", data.url, { shouldValidate: true }),
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -24,16 +37,19 @@ const RenderMentorDetails = () => {
         <p className="text-gray-600">Tell us about your expertise</p>
       </div>
 
-      {/* About Us with ReactQuill */}
+      {/* About You (mentor bio) */}
       <div>
-        <Label className="block text-sm font-medium text-gray-700 mb-2">
+        <Label className="block text-sm font-medium text-gray-700 mb-1">
           <GraduationCap className="inline w-4 h-4 mr-2" />
-          About Us
+          About You
         </Label>
+        <p className="text-xs text-gray-500 mb-2">
+          A short bio shown to students — your experience, teaching style, and what you specialize in.
+        </p>
         <Controller
           name="additional_details"
           control={control}
-          rules={{ required: "About Us is required" }}
+          rules={{ required: "Please tell students a bit about yourself" }}
           render={({ field }) => (
             <ReactQuill
               theme="snow"
@@ -95,18 +111,50 @@ const RenderMentorDetails = () => {
       </div>
 
       <div>
-        <Label className="block text-sm font-medium text-gray-700 mb-2">
+        <Label className="block text-sm font-medium text-gray-700 mb-1">
           <FileText className="inline w-4 h-4 mr-2" />
           ID Proof
         </Label>
-        <Input
-          type="number"
-          {...register("id_proof", { required: "ID proof is required" })}
-          className={`w-full px-4 py-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-            errors.id_proof ? "border-red-500" : "border-gray-300"
-          }`}
-          placeholder="Your ID proof number or document"
+        <p className="text-xs text-gray-500 mb-2">
+          Upload a government ID (image or PDF) for verification.
+        </p>
+
+        {/* Holds the uploaded document URL for validation */}
+        <input type="hidden" {...register("id_proof", { required: "ID proof is required" })} />
+        <input
+          type="file"
+          accept="image/*,.pdf"
+          id="id-proof-upload"
+          className="hidden"
+          onChange={handleIdUpload}
         />
+        <Label
+          htmlFor="id-proof-upload"
+          className={`w-full px-4 py-3 border-2 border-dashed rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
+            errors.id_proof ? "border-red-400" : "border-gray-300 hover:border-blue-500"
+          } text-gray-600 hover:text-blue-600`}
+        >
+          {uploadingId ? (
+            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+          ) : (
+            <Upload className="w-5 h-5 mr-2" />
+          )}
+          {idProof ? "Change document" : "Upload ID proof"}
+        </Label>
+
+        {idProof && (
+          <a
+            href={idProof}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-2 inline-block text-sm text-blue-600 hover:underline"
+          >
+            View uploaded document
+          </a>
+        )}
+        {errors.id_proof && (
+          <p className="text-red-500 text-sm mt-1">{errors.id_proof.message}</p>
+        )}
       </div>
 
       {/* <div>

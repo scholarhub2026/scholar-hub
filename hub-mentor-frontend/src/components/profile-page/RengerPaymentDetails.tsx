@@ -180,14 +180,14 @@ const RenderPaymentDetails = () => {
       <div>
         <Label className="block text-sm font-medium text-gray-700 mb-2">
           <MessageSquare className="inline w-4 h-4 mr-2" />
-          Message
+          Additional note <span className="font-normal text-gray-400">(optional)</span>
         </Label>
         <Textarea
           {...register("message")}
           value={watch("message")}
           rows={3}
           className={getInputClass(!!errors.message)}
-          placeholder="Any message or note"
+          placeholder="Anything else you'd like the admin to know (optional)"
           error={errors.message?.message}
         />
       </div>
