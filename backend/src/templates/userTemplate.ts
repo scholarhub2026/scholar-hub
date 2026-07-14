@@ -1,40 +1,24 @@
-export const userTemplate = (data: { email: string; pass: string }): string => `
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Welcome Email</title>
-    <style>
-      body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; margin: 0; padding: 0; }
-      .email-container { max-width: 600px; margin: 40px auto; background: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 30px; color: #333; }
-      .header { text-align: center; margin-bottom: 30px; }
-      .header h1 { color: #007BFF; font-size: 28px; }
-      .content { font-size: 16px; line-height: 1.6; }
-      .label { font-weight: 600; margin-bottom: 5px; }
-      .value { margin-bottom: 20px; font-size: 16px; }
-      .login-btn { display: inline-block; margin-top: 30px; background-color: #007BFF; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; transition: background-color 0.3s; }
-      .login-btn:hover { background-color: #0056b3; }
-      .footer { margin-top: 40px; font-size: 12px; color: #888; text-align: center; }
-    </style>
-  </head>
-  <body>
-    <div class="email-container">
-      <div class="header">
-        <h1>Welcome to Scholar Hub 🎓</h1>
-        <p>Your account credentials are below:</p>
-      </div>
-      <div class="content">
-        <p class="label">Email:</p>
-        <p class="value">${data.email}</p>
-        <p class="label">Password:</p>
-        <p class="value"><b>${data.pass}</b></p>
-        <div style="text-align: center;">
-          <a href="https://www.scholarhub.live/login" class="login-btn" target="_blank">Login Now</a>
-        </div>
-      </div>
-      <div class="footer">
-        &copy; ${new Date().getFullYear()} Scholar Hub. All rights reserved.
-      </div>
+import { APP_URL, emailButton, emailLayout } from './emailLayout'
+
+export const userTemplate = (data: { email: string; pass: string }): string =>
+  emailLayout(`
+    <h1 style="margin:0 0 8px;font-size:22px;color:#0f172a;">Welcome to Scholar Hub 🎓</h1>
+    <p style="margin:0 0 24px;color:#64748b;">
+      Your account is ready. Use the credentials below to sign in and get started.
+    </p>
+
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:18px 20px;margin-bottom:28px;">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.6px;color:#94a3b8;margin-bottom:4px;">Email</div>
+      <div style="font-family:monospace;font-size:15px;color:#0f172a;margin-bottom:16px;word-break:break-all;">${data.email}</div>
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.6px;color:#94a3b8;margin-bottom:4px;">Password</div>
+      <div style="font-family:monospace;font-size:15px;font-weight:700;color:#0f172a;">${data.pass}</div>
     </div>
-  </body>
-</html>`;
+
+    <div style="text-align:center;">
+      ${emailButton('Log in to Scholar Hub', `${APP_URL}/login`)}
+    </div>
+
+    <p style="margin:26px 0 0;font-size:13px;color:#94a3b8;">
+      For your security, please change your password after your first login.
+    </p>
+  `)

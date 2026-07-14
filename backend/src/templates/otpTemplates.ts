@@ -1,23 +1,19 @@
-export const otpTemplate = (otp: string): string => `
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="UTF-8" />
-    <title>OTP Verification</title>
-    <style>
-      body { font-family: Arial, sans-serif; background-color: #f6f8fa; margin: 0; padding: 0; }
-      .container { background-color: #ffffff; max-width: 600px; margin: 40px auto; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-      .otp { font-size: 28px; font-weight: bold; color: #2c3e50; letter-spacing: 4px; background: #f1f1f1; padding: 12px 20px; display: inline-block; border-radius: 5px; }
-      .footer { margin-top: 40px; font-size: 12px; color: #888; text-align: center; }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <h2>Verify Your Email</h2>
-      <p>Please use the following OTP to complete your verification:</p>
-      <div class="otp">${otp}</div>
-      <p style="text-align:center;">This OTP is valid for 10 minutes. Do not share it with anyone.</p>
-      <div class="footer">&copy; ${new Date().getFullYear()} Scholar Hub. All rights reserved.</div>
+import { emailLayout } from './emailLayout'
+
+export const otpTemplate = (otp: string): string =>
+  emailLayout(`
+    <h1 style="margin:0 0 8px;font-size:22px;color:#0f172a;">Verify your email</h1>
+    <p style="margin:0 0 24px;color:#64748b;">
+      Use the following one-time code to complete your verification:
+    </p>
+
+    <div style="text-align:center;margin-bottom:24px;">
+      <div style="display:inline-block;font-size:30px;font-weight:800;letter-spacing:8px;color:#1E40AF;background:#eff6ff;border:1px solid #dbeafe;padding:16px 28px;border-radius:12px;">
+        ${otp}
+      </div>
     </div>
-  </body>
-</html>`;
+
+    <p style="margin:0;font-size:13px;color:#94a3b8;text-align:center;">
+      This code is valid for 10 minutes. Never share it with anyone.
+    </p>
+  `)
