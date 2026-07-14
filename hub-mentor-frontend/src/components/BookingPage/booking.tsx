@@ -229,16 +229,18 @@ const Booking = ({ mentor, setFormData, formData }) => {
           )}
 
         {/* 5. Total */}
-        {formData.totalAmount > 0 && (
-          <div className="flex items-center justify-between rounded-xl bg-brand-gradient px-5 py-4 text-white">
-            <span className="flex items-center gap-2 font-medium">
-              <BookOpen className="h-4 w-4" /> Total
-            </span>
-            <span className="font-display text-xl font-bold">
-              ₹{formData.totalAmount}
-            </span>
-          </div>
-        )}
+        {formData.bookingType &&
+          (formData.bookingType === "full" ||
+            formData.selectedSubjects.length > 0) && (
+            <div className="flex items-center justify-between rounded-xl bg-brand-gradient px-5 py-4 text-white">
+              <span className="flex items-center gap-2 font-medium">
+                <BookOpen className="h-4 w-4" /> Total
+              </span>
+              <span className="font-display text-xl font-bold">
+                {formData.totalAmount > 0 ? `₹${formData.totalAmount}` : "Free"}
+              </span>
+            </div>
+          )}
       </div>
     </div>
   );

@@ -286,9 +286,14 @@ const BookingPage = () => {
                   <div className="mt-5 flex items-center justify-between rounded-xl bg-brand-gradient px-5 py-4 text-white">
                     <span className="font-medium">Total</span>
                     <span className="font-display text-xl font-bold">
-                      ₹{formData.totalAmount}
+                      {formData.totalAmount > 0 ? `₹${formData.totalAmount}` : "Free"}
                     </span>
                   </div>
+                  {!formData.totalAmount || formData.totalAmount < 1 ? (
+                    <p className="mt-3 text-center text-sm text-slate-500">
+                      No payment needed — your session will be booked instantly.
+                    </p>
+                  ) : null}
                 </div>
 
                 {/* <div className="space-y-4 pt-4">
@@ -418,7 +423,11 @@ const BookingPage = () => {
               )}
 
               <Button onClick={nextStep} disabled={!isStepComplete()}>
-                {currentStep === 2 ? "Complete Booking" : "Continue"}
+                {currentStep === 2
+                  ? formData.totalAmount > 0
+                    ? "Proceed to Pay"
+                    : "Confirm Booking"
+                  : "Continue"}
               </Button>
             </div>
           )}
