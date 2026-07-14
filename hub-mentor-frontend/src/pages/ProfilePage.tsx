@@ -14,7 +14,6 @@ import { roleSlug } from "@/config/roles";
 
 import RenderMentorDetails from "@/components/profile-page/RenderMentorDetails";
 import RenderPaymentDetails from "@/components/profile-page/RengerPaymentDetails";
-import RenderSubjectDetails from "@/components/profile-page/RenderSubjectDetails";
 
 // Fields validated per section before saving that section.
 const DETAILS_FIELDS = ["additional_details", "education_qualification", "location", "id_proof"];
@@ -26,7 +25,7 @@ const PAYMENT_FIELDS = [
   "payment_details.upi_id",
 ];
 
-type SectionKey = "details" | "subjects" | "payment";
+type SectionKey = "details" | "payment";
 
 const SectionCard = ({
   title,
@@ -127,8 +126,6 @@ const ProfilePage = () => {
     );
   };
 
-  const classes = Array.isArray(mentor.selected_class) ? mentor.selected_class : [];
-
   if (isLoading) {
     return (
       <DashboardLayout userRole={role}>
@@ -209,53 +206,6 @@ const ProfilePage = () => {
                     <div className="text-sm text-slate-400">Not uploaded</div>
                   )}
                 </div>
-              </div>
-            )}
-          </SectionCard>
-
-          {/* Subjects & Pricing */}
-          <SectionCard
-            title="Subjects & Pricing"
-            description="The classes and subjects you teach, with prices."
-            editing={editing === "subjects"}
-            onEdit={() => setEditing("subjects")}
-            onCancel={cancel}
-            onSave={() => saveSection(["selected_class"])}
-            saving={isPending}
-          >
-            {editing === "subjects" ? (
-              <RenderSubjectDetails />
-            ) : classes.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-5 text-center text-sm text-slate-400">
-                You haven't selected any classes yet. Click Edit to add the classes and
-                subjects you teach.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {classes.map((cls: any, i: number) => (
-                  <div key={i} className="rounded-lg border border-slate-200 p-3">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium capitalize text-slate-800">
-                        {cls.class_id?.class ?? "Class"}
-                        {cls.class_id?.syllabus ? ` · ${cls.class_id.syllabus}` : ""}
-                      </span>
-                      <span className="text-sm font-semibold text-slate-700">₹{cls.price}</span>
-                    </div>
-                    {Array.isArray(cls.subject) && cls.subject.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {cls.subject.map((sub: any, j: number) => (
-                          <span
-                            key={j}
-                            className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary"
-                          >
-                            <span className="capitalize">{sub.subject_id?.name ?? "Subject"}</span>
-                            <span className="text-primary/60">₹{sub.subject_price}</span>
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
               </div>
             )}
           </SectionCard>

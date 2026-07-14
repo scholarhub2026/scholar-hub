@@ -47,6 +47,7 @@ const MentorDashboard = lazy(() => import("./features/mentor/dashboard/MentorDas
 const MentorEarningsPage = lazy(() => import("./features/mentor/earnings/MentorEarningsPage"));
 const MentorReviewsPage = lazy(() => import("./features/mentor/reviews/MentorReviewsPage"));
 const MentorAvailabilityPage = lazy(() => import("./features/mentor/availability/MentorAvailabilityPage"));
+const MentorSubjectsPage = lazy(() => import("./features/mentor/subjects/MentorSubjectsPage"));
 
 // Student
 const StudentDashboard = lazy(() => import("./features/student/dashboard/StudentDashboard"));
@@ -108,6 +109,7 @@ const renderRoutes = () => (
         }
       >
         <Route path="/mentor" element={<MentorDashboard />} />
+        <Route path="/mentor/subjects" element={<MentorSubjectsPage />} />
         <Route path="/mentor/schedule" element={<BookingTable />} />
         <Route path="/mentor/earnings" element={<MentorEarningsPage />} />
         <Route path="/mentor/availability" element={<MentorAvailabilityPage />} />

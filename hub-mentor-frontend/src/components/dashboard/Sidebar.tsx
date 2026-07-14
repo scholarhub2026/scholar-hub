@@ -49,6 +49,7 @@ export const NAVIGATION: Record<RoleSlug, NavItem[]> = {
   mentor: [
     { name: "Dashboard", href: "/mentor", icon: LayoutDashboard },
     { name: "My Profile", href: "/mentor/profile", icon: UserRound },
+    { name: "Subjects & Pricing", href: "/mentor/subjects", icon: BookOpen },
     { name: "Schedule", href: "/mentor/schedule", icon: CalendarClock },
     { name: "Earnings", href: "/mentor/earnings", icon: Wallet },
     { name: "Availability", href: "/mentor/availability", icon: Clock },

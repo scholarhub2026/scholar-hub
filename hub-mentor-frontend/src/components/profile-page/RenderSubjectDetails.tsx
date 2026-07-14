@@ -6,11 +6,12 @@ import { useFormContext } from "react-hook-form";
 import { useParams } from "react-router-dom";
 import { Input } from "../ui/input";
 
-export default function RenderSubjectDetails() {
+export default function RenderSubjectDetails({ mentorId }: { mentorId?: string } = {}) {
   const { data: classesRes } = useGetClassesQuery({ page: 1, limit: 100000 });
   const classes = classesRes?.data || [];
-  const { id } = useParams();
-  const { data: mentorDetails } = useGetMentorQuery({ id});
+  const params = useParams();
+  const id = mentorId || params.id;
+  const { data: mentorDetails } = useGetMentorQuery({ id });
 
   const { setValue } = useFormContext<ProfileFormData>();
 
