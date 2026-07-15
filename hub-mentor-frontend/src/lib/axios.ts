@@ -4,7 +4,14 @@ import axios, {
 } from 'axios';
 import { emitForceLogout } from '@/auth/authEvents';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+// Production ALWAYS calls the same-origin '/api' path, which vercel.json
+// proxies server-side to the Railway backend. Phones on many carrier networks
+// cannot reach the raw *.up.railway.app domain directly (IPv4-only), and
+// same-origin also keeps the refresh cookie first-party on mobile Safari.
+// The env var only applies to local dev (defaults to the local backend).
+const BASE_URL = import.meta.env.DEV
+  ? import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'
+  : '/api';
 const TOKEN_KEY = 'token';
 const REFRESH_PATH = '/auth/refresh';
 
