@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../data/services/notification_router.dart';
 import '../bookings/bookings_screen.dart';
 import '../home/home_screen.dart';
 import '../mentors/mentors_screen.dart';
@@ -19,6 +20,32 @@ class _AppShellState extends State<AppShell> {
   int _index = 0;
   String? _mentorQuery;
   int _filterNonce = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    NotificationRouter.instance.pending.addListener(_onPending);
+    // Handle a tap that arrived before this shell mounted (cold start).
+    WidgetsBinding.instance.addPostFrameCallback((_) => _onPending());
+  }
+
+  @override
+  void dispose() {
+    NotificationRouter.instance.pending.removeListener(_onPending);
+    super.dispose();
+  }
+
+  /// Map a tapped notification to a student tab.
+  void _onPending() {
+    final pending = NotificationRouter.instance.pending.value;
+    if (pending == null || !mounted) return;
+    final target = switch (pending.type) {
+      'booking' => 2, // Bookings
+      _ => 0, // Home
+    };
+    if (target != _index) setState(() => _index = target);
+    NotificationRouter.instance.consume();
+  }
 
   void _go(int i) {
     if (i == _index) return;

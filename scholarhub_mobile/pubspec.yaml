@@ -18,6 +18,7 @@ dependencies:
   # Push notifications (requires Firebase native config — see PUSH_SETUP.md)
   firebase_core: ^3.8.0
   firebase_messaging: ^15.1.5
+  flutter_local_notifications: ^19.0.0
 
   # State management
 

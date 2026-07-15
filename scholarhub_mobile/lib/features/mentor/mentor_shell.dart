@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../data/services/notification_router.dart';
 import '../../state/auth/auth_cubit.dart';
 import '../settings/settings_screen.dart';
 import '../shell/widgets/app_bottom_nav.dart';
@@ -34,6 +35,32 @@ class MentorShell extends StatefulWidget {
 
 class _MentorShellState extends State<MentorShell> {
   int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    NotificationRouter.instance.pending.addListener(_onPending);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _onPending());
+  }
+
+  @override
+  void dispose() {
+    NotificationRouter.instance.pending.removeListener(_onPending);
+    super.dispose();
+  }
+
+  /// Map a tapped notification to a mentor tab.
+  void _onPending() {
+    final pending = NotificationRouter.instance.pending.value;
+    if (pending == null || !mounted) return;
+    final target = switch (pending.type) {
+      'booking' => 1, // My Schedule
+      'mentor_approved' => 0, // Dashboard
+      _ => 0,
+    };
+    if (target != _index) setState(() => _index = target);
+    NotificationRouter.instance.consume();
+  }
 
   void _go(int i) {
     if (i != _index) setState(() => _index = i);

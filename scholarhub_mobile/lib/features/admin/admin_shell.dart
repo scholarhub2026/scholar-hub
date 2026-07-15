@@ -5,6 +5,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
+import '../../data/services/notification_router.dart';
 import '../../state/auth/auth_cubit.dart';
 import '../../widgets/app_snackbar.dart';
 import '../settings/settings_screen.dart';
@@ -44,6 +45,33 @@ class AdminShell extends StatefulWidget {
 
 class _AdminShellState extends State<AdminShell> {
   int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    NotificationRouter.instance.pending.addListener(_onPending);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _onPending());
+  }
+
+  @override
+  void dispose() {
+    NotificationRouter.instance.pending.removeListener(_onPending);
+    super.dispose();
+  }
+
+  /// Map a tapped notification to an admin destination.
+  void _onPending() {
+    final pending = NotificationRouter.instance.pending.value;
+    if (pending == null || !mounted) return;
+    final target = switch (pending.type) {
+      'booking' => 5, // Bookings
+      'inquiry' => 1, // Enquiries
+      'mentor_application' || 'mentor_pending' => 2, // Mentors
+      _ => 0,
+    };
+    if (target != _index) setState(() => _index = target);
+    NotificationRouter.instance.consume();
+  }
 
   void _go(int i) {
     Navigator.pop(context); // close the drawer

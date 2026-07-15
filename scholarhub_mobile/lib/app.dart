@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import 'core/theme/app_theme.dart';
+import 'data/services/notification_router.dart';
 import 'features/admin/admin_shell.dart';
 import 'features/mentor/mentor_shell.dart';
 import 'features/shell/app_shell.dart';
@@ -25,6 +26,9 @@ class ScholarHubApp extends StatelessWidget {
         title: 'Scholar Hub',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light(),
+        // Root navigator so a notification tap can navigate from anywhere,
+        // including a cold start (see NotificationRouter / PushService).
+        navigatorKey: NotificationRouter.instance.navigatorKey,
         home: child,
       ),
       child: const _RootGate(),

@@ -10,6 +10,7 @@ import { Request, Response } from 'express'
 
 import { paginate } from '../utils/pagination'
 import { sendMail } from '../utils/mailService'
+import { sendPushToUser } from '../utils/pushService'
 
 export const createMentor = catchAsync(async (req: Request, res: Response) => {
   const requiredFields = ['email', 'name', 'phone', 'place', 'message']
@@ -263,6 +264,15 @@ export const updateMentor = catchAsync(async (req: Request, res: Response) => {
     },
     { new: true }
   );
+
+  // Tell the mentor (on their device, if signed in) they've been approved.
+  if (admin_approve) {
+    sendPushToUser(id, {
+      title: "You're approved! 🎉",
+      body: 'Your mentor account is active. Set up your profile to start teaching.',
+      data: { type: 'mentor_approved' },
+    }).catch(err => console.error('[push] mentor approve notify failed:', err.message))
+  }
 
   return res.status(200).json({
     message: "User Details Updated Successfully",

@@ -146,9 +146,15 @@ export const updateBookingController = async (req, res) => {
       return res.status(404).json({ message: 'Booking not found' })
     }
 
-    // If this update completed the payment, pay out any pending referral.
+    // If this update completed the payment, pay out any pending referral and
+    // let the student know their booking is confirmed.
     if (updateData.paymentStatus === 'completed') {
       await rewardReferralOnBooking(updatedBooking.studentId?.toString())
+      sendPushToUser(updatedBooking.studentId?.toString() ?? '', {
+        title: 'Booking confirmed',
+        body: 'Your payment was received and your session is confirmed.',
+        data: { type: 'booking', bookingId },
+      }).catch(err => console.error('[push] student notify failed:', err.message))
     }
 
     res
