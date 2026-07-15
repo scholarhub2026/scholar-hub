@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'app.dart';
 import 'data/services/push_service.dart';
+import 'firebase_options.dart';
 import 'state/auth/auth_cubit.dart';
 
 Future<void> main() async {
@@ -19,7 +20,9 @@ Future<void> main() async {
   // Push notifications are optional at boot: if Firebase native config is
   // missing the app still launches, just without notifications.
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
     await PushService.instance.init();
   } catch (e) {
     debugPrint('[push] Firebase not configured yet: $e');
