@@ -3,7 +3,7 @@ import { Eye, EyeOff } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
-export default function PasswordField({ register, errors, fieldname, watch }) {
+export default function PasswordField({ register, errors, fieldname, watch, isLogin = false }) {
   const [showPassword, setShowPassword] = useState(false)
 
   const passwordValue = watch("password") // get original password
@@ -20,7 +20,9 @@ export default function PasswordField({ register, errors, fieldname, watch }) {
           placeholder={
             fieldname === "confirmPassword"
               ? "Confirm your password"
-              : "Create a password"
+              : isLogin
+                ? "Enter your password"
+                : "Create a password"
           }
           type={showPassword ? "text" : "password"}
           {...register(fieldname, {
@@ -29,7 +31,10 @@ export default function PasswordField({ register, errors, fieldname, watch }) {
                 ? "Please confirm your password"
                 : "Password is required",
 
-            ...(fieldname !== "confirmPassword" && {
+            // Complexity rules apply only when CREATING a password (signup).
+            // On login we must not block an existing password that predates
+            // these rules — the server verifies the credentials.
+            ...(fieldname !== "confirmPassword" && !isLogin && {
               minLength: {
                 value: 6,
                 message: "Password must be at least 6 characters",

@@ -62,7 +62,7 @@ const LoginCard = () => {
                 {/* Forgot password? */}
               </Link>
             </div>
-            <PasswordField register={register} fieldname="password" errors={errors} watch={watch}/>
+            <PasswordField register={register} fieldname="password" errors={errors} watch={watch} isLogin/>
           </div>
           {/* <div className="flex items-center space-x-2">
             <input
