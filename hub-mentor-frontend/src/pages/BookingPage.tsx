@@ -36,7 +36,7 @@ const BookingPage = () => {
   const { user } = useAuth();
   const base = usePortalBase();
   const [mentor, setMentor] = useState(null);
-  const { data, isSuccess } = useGetMentorQuery({
+  const { data, isSuccess, isLoading } = useGetMentorQuery({
     id: id as string,
   });
   const { mutate } = useCreateBookingMutation();
@@ -76,6 +76,16 @@ const BookingPage = () => {
   });
 
   if (!mentor) {
+    // Still resolving the mentor — show a spinner, not a "not found" flash.
+    if (isLoading || data?.data) {
+      return (
+        <PortalPage>
+          <div className="flex h-64 items-center justify-center">
+            <div className="h-8 w-8 rounded-full border-4 border-primary/30 border-t-primary animate-spin" />
+          </div>
+        </PortalPage>
+      );
+    }
     return (
       <PortalPage>
         <div className="container-wide py-16 text-center">
@@ -316,73 +326,71 @@ const BookingPage = () => {
 
           {/* Confirmation Step */}
           {currentStep === 4 && (
-            <div className="animate-fade-in text-center py-8">
-              <div className="mb-6 flex justify-center">
-                <div className="h-24 w-24 rounded-full bg-green-100 flex items-center justify-center">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="h-12 w-12 text-green-600"
-                  >
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                  </svg>
+            <div className="animate-fade-in mx-auto max-w-md py-4">
+              <div className="rounded-2xl border border-slate-200/80 bg-white p-8 text-center shadow-sm">
+                <div className="mb-5 flex justify-center">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
+                    <Check className="h-8 w-8 text-green-600" strokeWidth={2.5} />
+                  </div>
                 </div>
-              </div>
 
-              <h2 className="text-3xl font-bold mb-2">Booking Request Sent!</h2>
-              <p className="text-xl text-muted-foreground mb-8">
-                Your booking is awaiting admin approval — we'll email you once
-                it's confirmed. No payment is needed now.
-              </p>
+                <h2 className="font-display text-2xl font-bold text-slate-900">
+                  Booking request sent!
+                </h2>
+                <p className="mx-auto mt-2 max-w-xs text-sm text-slate-500">
+                  Awaiting admin approval — we'll email you once it's confirmed.
+                  No payment is needed now.
+                </p>
 
-              <div className="max-w-md mx-auto mb-8 text-left bg-muted/50 p-6 rounded-lg">
-                <div className="space-y-4">
-                  <div>
-                    <span className="font-medium block">Mentor:</span>
-                    <span>
+                <div className="mt-6 space-y-3 rounded-xl bg-slate-50 p-4 text-left text-sm">
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-slate-500">Mentor</span>
+                    <span className="font-medium capitalize text-slate-800">
                       {mentor.firstName} {mentor.lastName}
                     </span>
                   </div>
-                  <div>
-                    {/* <span className="font-medium block">Date & Time:</span> */}
-                    {/* <span>{date?.toLocaleDateString()} at {time}</span> */}
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-slate-500">Student</span>
+                    <span className="font-medium text-slate-800">
+                      {formData.studentName}
+                    </span>
                   </div>
-                  <div>
-                    <span className="font-medium block">Student:</span>
-                    <span>{formData.studentName}</span>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-slate-500">Fee</span>
+                    <span className="font-medium text-slate-800">
+                      {formData.totalAmount > 0
+                        ? `₹${formData.totalAmount} / ${FREQUENCY_LABEL[formData.paymentFrequency] ?? "month"}`
+                        : "Free"}
+                    </span>
                   </div>
                 </div>
-              </div>
 
-              <p className="text-muted-foreground mb-8">
-                A confirmation email has been sent to {formData.email}. <br />
-                You can view and manage all your upcoming sessions in your
-                dashboard.
-              </p>
+                <p className="mt-5 text-xs text-slate-400">
+                  A confirmation email was sent to {formData.email}.
+                </p>
 
-              <div className="flex flex-col sm:flex-row justify-center gap-4">
-                {user ? (
-                  <>
-                    <Link to={roleHome(user.role)}>
-                      <Button>Go to Dashboard</Button>
-                    </Link>
-                    {roleSlug(user.role) === "student" && (
-                      <Link to="/app/bookings">
-                        <Button variant="outline">View my bookings</Button>
+                <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
+                  {user ? (
+                    <>
+                      <Link to={roleHome(user.role)} className="w-full sm:w-auto">
+                        <Button className="w-full">Go to Dashboard</Button>
                       </Link>
-                    )}
-                  </>
-                ) : (
-                  <Link to="/">
-                    <Button variant="outline">Back to Home</Button>
-                  </Link>
-                )}
+                      {roleSlug(user.role) === "student" && (
+                        <Link to="/app/bookings" className="w-full sm:w-auto">
+                          <Button variant="outline" className="w-full">
+                            View my bookings
+                          </Button>
+                        </Link>
+                      )}
+                    </>
+                  ) : (
+                    <Link to="/" className="w-full">
+                      <Button variant="outline" className="w-full">
+                        Back to Home
+                      </Button>
+                    </Link>
+                  )}
+                </div>
               </div>
             </div>
           )}

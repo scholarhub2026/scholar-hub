@@ -25,7 +25,7 @@ const MentorProfile = () => {
 
 
 
-  const { data, isSuccess } = useGetMentorQuery({ id });
+  const { data, isSuccess, isLoading } = useGetMentorQuery({ id });
   const isAvailable=data?.data?.is_available;
 
 
@@ -44,6 +44,16 @@ const MentorProfile = () => {
   };
 
   if (!mentor) {
+    // Still resolving the mentor — show a spinner, not a "not found" flash.
+    if (isLoading || data?.data) {
+      return (
+        <PortalPage>
+          <div className="flex h-64 items-center justify-center">
+            <div className="h-8 w-8 rounded-full border-4 border-primary/30 border-t-primary animate-spin" />
+          </div>
+        </PortalPage>
+      );
+    }
     return (
       <PortalPage>
         <div className="container-wide py-16 text-center">
