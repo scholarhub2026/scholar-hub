@@ -5,10 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useGetMentorQuery } from "@/api/mentor/get-mentor";
 import Booking from "@/components/BookingPage/booking";
+import Schedule from "@/components/BookingPage/schedule";
 import Details from "@/components/BookingPage/details";
 import { useCreateBookingMutation } from "@/api/booking/create-booking";
-import { useUpdateBookingMutation } from "@/api/booking/update-booking";
-import { makePayment } from "@/lib/payment-gateway";
 import { useAuth } from "@/auth/AuthProvider";
 import { roleHome, roleSlug } from "@/config/roles";
 import { cn } from "@/lib/utils";
@@ -19,10 +18,17 @@ import { Check } from "lucide-react";
 // Define the steps in the booking process
 const steps = [
   { id: "booking", name: "Booking" },
+  { id: "schedule", name: "Schedule" },
   { id: "details", name: "Details" },
-  { id: "payment", name: "Payment" },
+  { id: "review", name: "Review" },
   { id: "confirmation", name: "Confirmation" },
 ];
+
+const FREQUENCY_LABEL: Record<string, string> = {
+  daily: "day",
+  weekly: "week",
+  monthly: "month",
+};
 
 const BookingPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -32,7 +38,6 @@ const BookingPage = () => {
     id: id as string,
   });
   const { mutate } = useCreateBookingMutation();
-  const { mutate: updateBooking } = useUpdateBookingMutation();
 
 
   useEffect(() => {
@@ -44,7 +49,7 @@ const BookingPage = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState({
     mentorId: id,
-    studentId: "68d94dd96a78d2bafebb4ee6",
+    studentId: user?.id ?? "",
     studentName: "",
     email: "",
     phone: "",
@@ -56,12 +61,16 @@ const BookingPage = () => {
     bookingType: "", // "full", "individual", "multiple"
     selectedSubjects: [],
 
+    scheduleCadence: "recurring", // "recurring" | "single"
+    reservedSlots: [], // [{ slotId, dayOfWeek, startTime, endTime, cadence, date? }]
+
+    // Manual payment collection — no online payment. The fee (totalAmount) is
+    // collected by the admin per period after classes.
+    paymentFrequency: "monthly", // "daily" | "weekly" | "monthly"
+    classStartDate: null, // "YYYY-MM-DD" (recurring; single derives it)
+
     totalAmount: 0,
-    paymentType: "", // "credit-card", "paypal", etc.
-    paymentStatus: "pending", // "pending", "completed", "failed"
-    transactionId: "", // from payment gateway
     bookingDate: null,
-    orderId: 0,
   });
 
   if (!mentor) {
@@ -90,13 +99,6 @@ const BookingPage = () => {
     }));
   };
 
-  const handleTermsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData((prev) => ({
-      ...prev,
-      agreeToTerms: e.target.checked,
-    }));
-  };
-
   const nextStep = () => {
   if (currentStep < steps.length - 1) {
     // If not the last step
@@ -105,69 +107,38 @@ const BookingPage = () => {
       isValidated: false, // Reset validation on step change
     }));
 
-    // Special handling for step 2 (the "Review & pay" step):
-    // create the booking, then open the payment gateway (unless it's free).
-    if (currentStep === 2) {
+    // Review step: submit the booking for ADMIN APPROVAL. No payment here —
+    // fees are collected manually per period after classes begin.
+    if (currentStep === 3) {
+      // Single-session bookings start on their earliest session date.
+      const derivedStart =
+        formData.classStartDate ??
+        (formData.scheduleCadence === "single"
+          ? (formData.reservedSlots as Array<{ date?: string }>)
+              .map((s) => s.date)
+              .filter(Boolean)
+              .sort()[0] ?? null
+          : null);
+
       const updatedForm = {
         ...formData,
-        orderId: Math.floor(Math.random() * 100000),
+        studentId: user?.id ?? formData.studentId, // auth may resolve late
+        classStartDate: derivedStart,
       };
 
       setFormData(updatedForm);
 
       mutate(updatedForm, {
-        onSuccess: (res: any) => {
-          const bookingId = res?.newBooking?._id;
-
-          // Free (₹0) booking — nothing to pay. Confirm it right away so it
-          // doesn't linger as "Pending" with a Make Payment button.
-          if (!updatedForm.totalAmount || updatedForm.totalAmount < 1) {
-            if (bookingId) {
-              updateBooking({
-                bookingId,
-                updateData: { bookingStatus: "confirmed" },
-              });
-            }
-            setCurrentStep((prev) => prev + 1);
-            return;
-          }
-
-          // Paid booking — open Razorpay. On success mark it paid, then confirm.
-          makePayment({
-            totalAmount: updatedForm.totalAmount,
-            orderId: updatedForm.orderId,
-            bookingId,
-            studentName: updatedForm.studentName,
-            email: updatedForm.email,
-            phone: updatedForm.phone,
-            onSuccess: (rp) => {
-              if (bookingId) {
-                updateBooking({
-                  bookingId,
-                  updateData: {
-                    paymentStatus: "completed",
-                    bookingStatus: "confirmed",
-                    transactionId: rp.razorpay_payment_id,
-                  },
-                });
-              }
-              setCurrentStep(3);
-            },
-            // Closed without paying — booking stays pending; they can pay later
-            // from "My Bookings". Still show the confirmation.
-            onDismiss: () => setCurrentStep(3),
-          });
-        },
-        onError: (error: any) => {
+        onSuccess: () => setCurrentStep(4),
+        onError: (error) => {
           console.error("API Error:", error);
           alert(
-            error?.response?.data?.message ||
-              "Something went wrong. Please try again.",
+            (error as { response?: { data?: { message?: string } } })?.response
+              ?.data?.message || "Something went wrong. Please try again.",
           );
         },
       });
     } else {
-      // Just go to the next step if not step 2
       setCurrentStep((prev) => prev + 1);
     }
   }
@@ -190,8 +161,13 @@ const BookingPage = () => {
             formData.selectedSubjects.length > 0)
         );
       case 1:
-        return formData.studentName && formData.email && formData.phone;
+        return (
+          (formData.reservedSlots?.length ?? 0) > 0 &&
+          (formData.scheduleCadence === "single" || !!formData.classStartDate)
+        );
       case 2:
+        return formData.studentName && formData.email && formData.phone;
+      case 3:
         return true;
       default:
         return true;
@@ -242,7 +218,7 @@ const BookingPage = () => {
         </div>
 
         <div className="max-w-3xl mx-auto">
-          {/* Schedule Step */}
+          {/* Booking Step */}
           {currentStep === 0 && (
             <Booking
               formData={formData}
@@ -251,8 +227,17 @@ const BookingPage = () => {
             />
           )}
 
-          {/* Details Step */}
+          {/* Schedule Step */}
           {currentStep === 1 && (
+            <Schedule
+              formData={formData}
+              setFormData={setFormData}
+              mentor={mentor}
+            />
+          )}
+
+          {/* Details Step */}
+          {currentStep === 2 && (
             <Details
               formData={formData}
               handleInputChange={handleInputChange}
@@ -260,14 +245,16 @@ const BookingPage = () => {
             />
           )}
 
-          {/* Payment Step */}
-          {currentStep === 2 && (
+          {/* Review Step */}
+          {currentStep === 3 && (
             <div className="animate-fade-in">
               <div className="mb-8 text-center">
                 <h2 className="font-display text-2xl font-bold text-slate-900">
-                  Review &amp; pay
+                  Review &amp; confirm
                 </h2>
-                <p className="mt-1 text-slate-500">Confirm your booking details below.</p>
+                <p className="mt-1 text-slate-500">
+                  Check your summary — your request goes to our team for approval.
+                </p>
               </div>
 
               <div className="mx-auto max-w-xl space-y-4">
@@ -293,65 +280,40 @@ const BookingPage = () => {
                         {formData.bookingType}
                       </span>
                     </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Payment frequency</span>
+                      <span className="font-medium capitalize text-slate-800">
+                        {formData.paymentFrequency}
+                      </span>
+                    </div>
+                    {formData.classStartDate && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Classes start</span>
+                        <span className="font-medium text-slate-800">
+                          {formData.classStartDate}
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <div className="mt-5 flex items-center justify-between rounded-xl bg-brand-gradient px-5 py-4 text-white">
-                    <span className="font-medium">Total</span>
+                    <span className="font-medium">Fee</span>
                     <span className="font-display text-xl font-bold">
-                      {formData.totalAmount > 0 ? `₹${formData.totalAmount}` : "Free"}
+                      {formData.totalAmount > 0
+                        ? `₹${formData.totalAmount} / ${FREQUENCY_LABEL[formData.paymentFrequency] ?? "month"}`
+                        : "Free"}
                     </span>
                   </div>
-                  {!formData.totalAmount || formData.totalAmount < 1 ? (
-                    <p className="mt-3 text-center text-sm text-slate-500">
-                      No payment needed — your session will be booked instantly.
-                    </p>
-                  ) : null}
+                  <p className="mt-3 text-center text-sm text-slate-500">
+                    No payment now — fees are collected {formData.paymentFrequency}{" "}
+                    after classes begin, once our team approves your booking.
+                  </p>
                 </div>
-
-                {/* <div className="space-y-4 pt-4">
-                  <h3 className="font-semibold">Payment Method</h3>
-                   <div className="space-y-2">
-                            <Label>Session Type</Label>
-                            <RadioGroup
-                              
-                              onValueChange={(value) => {
-                                setFormData((prev) => ({
-                                  ...prev,
-                                  sessionType: value,
-                                }));
-                              }}
-                            >
-                              <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="cash on complete" id="cash-on-complete" />
-                                <Label htmlFor="cash-on-complete">Cash on Complete</Label>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="razorpay" id="razorpay" />
-                                <Label htmlFor="razorpay">Razorpay</Label>
-                              </div>
-                            </RadioGroup>
-                          </div>
-                  
-                  
-                  
-                  <div className="flex items-center space-x-2 pt-2">
-                    <input
-                      type="checkbox"
-                      id="terms"
-                      className="rounded border-gray-300 text-primary focus:ring-primary"
-                      checked={formData.agreeToTerms}
-                      onChange={handleTermsChange}
-                    />
-                    <Label htmlFor="terms" className="text-sm">
-                      I agree to the <a href="#" className="text-primary underline">terms and conditions</a>
-                    </Label>
-                  </div>
-                </div> */}
               </div>
             </div>
           )}
 
           {/* Confirmation Step */}
-          {currentStep === 3 && (
+          {currentStep === 4 && (
             <div className="animate-fade-in text-center py-8">
               <div className="mb-6 flex justify-center">
                 <div className="h-24 w-24 rounded-full bg-green-100 flex items-center justify-center">
@@ -371,9 +333,10 @@ const BookingPage = () => {
                 </div>
               </div>
 
-              <h2 className="text-3xl font-bold mb-2">Booking Confirmed!</h2>
+              <h2 className="text-3xl font-bold mb-2">Booking Request Sent!</h2>
               <p className="text-xl text-muted-foreground mb-8">
-                Your session has been successfully scheduled.
+                Your booking is awaiting admin approval — we'll email you once
+                it's confirmed. No payment is needed now.
               </p>
 
               <div className="max-w-md mx-auto mb-8 text-left bg-muted/50 p-6 rounded-lg">
@@ -423,7 +386,7 @@ const BookingPage = () => {
           )}
 
           {/* Navigation Buttons */}
-          {currentStep < 3 && (
+          {currentStep < 4 && (
             <div className="mx-auto mt-8 flex max-w-xl justify-between">
               {currentStep > 0 ? (
                 <Button variant="outline" onClick={prevStep}>
@@ -434,11 +397,7 @@ const BookingPage = () => {
               )}
 
               <Button onClick={nextStep} disabled={!isStepComplete()}>
-                {currentStep === 2
-                  ? formData.totalAmount > 0
-                    ? "Proceed to Pay"
-                    : "Confirm Booking"
-                  : "Continue"}
+                {currentStep === 3 ? "Confirm Booking" : "Continue"}
               </Button>
             </div>
           )}

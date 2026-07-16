@@ -1,34 +1,29 @@
 import { useEffect, useState } from "react";
-import dayjs from "dayjs";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Clock, Loader2, Plus, X } from "lucide-react";
+import { Loader2, Plus, Trash2 } from "lucide-react";
 import PageHeader from "@/components/shared/PageHeader";
 import { useAuth } from "@/auth/AuthProvider";
 import { useGetMentorQuery } from "@/api/mentor/get-mentor";
-import { useUpdateAvailabilityMutation } from "@/api/mentor/availability-api";
+import {
+  useUpdateAvailabilityMutation,
+  type WeeklySlot,
+} from "@/api/mentor/availability-api";
 
-// Slots are stored as ISO datetime strings so the student-facing profile can
-// render them with moment/dayjs (…format("LT") -> "10:00 AM").
-const timeToISO = (hhmm: string): string => {
-  const [h, m] = hhmm.split(":").map(Number);
-  const d = new Date();
-  d.setHours(h, m, 0, 0);
-  return d.toISOString();
-};
-const fmtSlot = (iso: string): string => {
-  const d = dayjs(iso);
-  return d.isValid() ? d.format("h:mm A") : iso; // fallback for legacy free-text
-};
-const hhmmOf = (iso: string): string => {
-  const d = dayjs(iso);
-  return d.isValid() ? d.format("HH:mm") : "";
-};
+// Rendered Monday-first; value is the JS/getDay() weekday (0=Sun … 6=Sat).
+const DAYS: Array<[number, string]> = [
+  [1, "Monday"],
+  [2, "Tuesday"],
+  [3, "Wednesday"],
+  [4, "Thursday"],
+  [5, "Friday"],
+  [6, "Saturday"],
+  [0, "Sunday"],
+];
 
 const MentorAvailabilityPage = () => {
   const { user } = useAuth();
@@ -37,51 +32,51 @@ const MentorAvailabilityPage = () => {
   const save = useUpdateAvailabilityMutation();
 
   const [isAvailable, setIsAvailable] = useState(true);
-  const [slots, setSlots] = useState<string[]>([]); // ISO strings
-  const [newTime, setNewTime] = useState("");
+  const [slots, setSlots] = useState<WeeklySlot[]>([]);
 
   // Hydrate from the mentor doc once it loads.
   useEffect(() => {
     const mentor = data?.data;
     if (!mentor) return;
     setIsAvailable(mentor.is_available !== false);
-    const existing: string[] = Array.isArray(mentor.available_slot)
-      ? mentor.available_slot.map((s: { time?: string }) => s?.time ?? "").filter(Boolean)
+    const existing: WeeklySlot[] = Array.isArray(mentor.weekly_availability)
+      ? mentor.weekly_availability.map((s: WeeklySlot) => ({
+          _id: s._id,
+          dayOfWeek: s.dayOfWeek,
+          startTime: s.startTime,
+          endTime: s.endTime,
+          capacity: s.capacity ?? 1,
+          isActive: s.isActive !== false,
+        }))
       : [];
     setSlots(existing);
   }, [data]);
 
-  const addSlot = () => {
-    if (!newTime) return;
-    const alreadyThere = slots.some((s) => hhmmOf(s) === newTime);
-    if (!alreadyThere) {
-      setSlots((prev) =>
-        [...prev, timeToISO(newTime)].sort(
-          (a, b) => dayjs(a).valueOf() - dayjs(b).valueOf(),
-        ),
-      );
-    }
-    setNewTime("");
-  };
+  const addSlot = (dayOfWeek: number) =>
+    setSlots((prev) => [
+      ...prev,
+      { dayOfWeek, startTime: "18:00", endTime: "19:00", capacity: 1, isActive: true },
+    ]);
 
-  const removeSlot = (i: number) => setSlots((prev) => prev.filter((_, idx) => idx !== i));
+  const updateSlot = (index: number, patch: Partial<WeeklySlot>) =>
+    setSlots((prev) => prev.map((s, i) => (i === index ? { ...s, ...patch } : s)));
+
+  const removeSlot = (index: number) =>
+    setSlots((prev) => prev.filter((_, i) => i !== index));
 
   const onSave = () => {
     if (!mentorId) return;
     save.mutate({
       id: mentorId,
-      data: {
-        is_available: isAvailable,
-        available_slot: slots.map((time) => ({ time })),
-      },
+      data: { is_available: isAvailable, weekly_availability: slots },
     });
   };
 
   return (
     <DashboardLayout userRole="mentor">
       <PageHeader
-        title="Availability"
-        description="Set whether you're taking bookings and the times students can book you."
+        title="Weekly Availability"
+        description="Set the time ranges you teach each day. Leave a day empty to be off (e.g. weekends). Students book the slots you add here."
       />
 
       <div className="max-w-2xl space-y-6">
@@ -101,61 +96,84 @@ const MentorAvailabilityPage = () => {
               </CardContent>
             </Card>
 
-            <Card className="rounded-xl border-slate-200/80 shadow-sm">
-              <CardHeader className="border-b border-slate-100 py-4">
-                <CardTitle className="font-display text-base">Time slots</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-5 py-5">
-                {/* Add a slot */}
-                <div className="flex items-end gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-sm">Add a time</Label>
-                    <Input
-                      type="time"
-                      value={newTime}
-                      onChange={(e) => setNewTime(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addSlot())}
-                      className="w-44"
-                    />
-                  </div>
-                  <Button type="button" variant="outline" onClick={addSlot} disabled={!newTime}>
-                    <Plus className="mr-1.5 h-4 w-4" /> Add slot
-                  </Button>
-                </div>
-
-                {/* Slot chips */}
-                {slots.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-400">
-                    No time slots yet. Add the times you're available above.
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {slots.map((s, i) => (
-                      <span
-                        key={i}
-                        className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 py-1.5 pl-3 pr-1.5 text-sm font-medium text-primary"
+            {DAYS.map(([day, label]) => {
+              const daySlots = slots
+                .map((s, i) => ({ s, i }))
+                .filter((x) => x.s.dayOfWeek === day)
+                .sort((a, b) => a.s.startTime.localeCompare(b.s.startTime));
+              return (
+                <Card key={day} className="rounded-xl border-slate-200/80 shadow-sm">
+                  <CardContent className="space-y-3 py-5">
+                    <div className="flex items-center justify-between">
+                      <div className="font-semibold text-slate-800">{label}</div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => addSlot(day)}
                       >
-                        <Clock className="h-3.5 w-3.5" />
-                        {fmtSlot(s)}
-                        <button
-                          type="button"
-                          onClick={() => removeSlot(i)}
-                          className="ml-0.5 rounded-full p-0.5 text-primary/70 transition hover:bg-primary/20 hover:text-primary"
-                          aria-label="Remove slot"
+                        <Plus className="mr-1.5 h-4 w-4" /> Add time
+                      </Button>
+                    </div>
+
+                    {daySlots.length === 0 ? (
+                      <p className="text-sm text-slate-400">Off — no slots</p>
+                    ) : (
+                      daySlots.map(({ s, i }) => (
+                        <div
+                          key={i}
+                          className="flex flex-wrap items-center gap-2 rounded-lg bg-slate-50 p-3"
                         >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                          <Input
+                            type="time"
+                            value={s.startTime}
+                            onChange={(e) => updateSlot(i, { startTime: e.target.value })}
+                            className="w-32"
+                          />
+                          <span className="text-slate-400">to</span>
+                          <Input
+                            type="time"
+                            value={s.endTime}
+                            onChange={(e) => updateSlot(i, { endTime: e.target.value })}
+                            className="w-32"
+                          />
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-sm text-slate-500">Seats</span>
+                            <Input
+                              type="number"
+                              min={1}
+                              value={s.capacity}
+                              onChange={(e) =>
+                                updateSlot(i, {
+                                  capacity: Math.max(1, Number(e.target.value) || 1),
+                                })
+                              }
+                              className="w-20"
+                            />
+                            <span className="text-xs text-slate-400">
+                              {s.capacity > 1 ? "group" : "1-on-1"}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeSlot(i)}
+                            className="ml-auto rounded-md p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-500"
+                            aria-label="Remove slot"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
 
             <div className="flex justify-end">
               <Button onClick={onSave} disabled={save.isPending}>
                 {save.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Save changes
+                Save availability
               </Button>
             </div>
           </>

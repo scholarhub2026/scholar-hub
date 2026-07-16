@@ -18,6 +18,74 @@ String _personName(dynamic ref) {
   return '';
 }
 
+/// A weekly slot reserved by a booking (recurring hold or a single dated
+/// session). Mirrors the backend `reservedSlots` sub-document.
+class ReservedSlot {
+  final int dayOfWeek; // 0=Sun … 6=Sat
+  final String startTime; // "HH:mm"
+  final String endTime;
+  final String cadence; // recurring | single
+  final DateTime? date; // set only for single sessions
+
+  const ReservedSlot({
+    required this.dayOfWeek,
+    required this.startTime,
+    required this.endTime,
+    required this.cadence,
+    this.date,
+  });
+
+  bool get isSingle => cadence == 'single';
+
+  factory ReservedSlot.fromJson(Map<String, dynamic> json) {
+    int day = 0;
+    final d = json['dayOfWeek'];
+    if (d is num) day = d.toInt();
+    if (d is String) day = int.tryParse(d) ?? 0;
+    return ReservedSlot(
+      dayOfWeek: day,
+      startTime: (json['startTime'] ?? '').toString(),
+      endTime: (json['endTime'] ?? '').toString(),
+      cadence: (json['cadence'] ?? 'recurring').toString(),
+      date: _date(json['date']),
+    );
+  }
+
+  /// e.g. "Every Mon · 18:00–19:00" or "Sat 25 Jul · 10:00–11:00".
+  String get label {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    final day = (dayOfWeek >= 0 && dayOfWeek < 7) ? days[dayOfWeek] : '';
+    final time = '$startTime–$endTime';
+    if (isSingle && date != null) {
+      final d = date!.toLocal();
+      return '$day ${d.day}/${d.month} · $time';
+    }
+    return 'Every $day · $time';
+  }
+}
+
+/// A manually collected payment recorded by the admin ("mark paid").
+class PaymentRecord {
+  final num amount;
+  final DateTime? collectedAt;
+  final String note;
+  final String periodLabel; // e.g. "Aug 2026"
+
+  const PaymentRecord({
+    required this.amount,
+    this.collectedAt,
+    this.note = '',
+    this.periodLabel = '',
+  });
+
+  factory PaymentRecord.fromJson(Map<String, dynamic> json) => PaymentRecord(
+        amount: _num(json['amount']),
+        collectedAt: _date(json['collectedAt']),
+        note: (json['note'] ?? '').toString(),
+        periodLabel: (json['periodLabel'] ?? '').toString(),
+      );
+}
+
 /// A booking record as returned by `/booking/:userId`. The same endpoint serves
 /// students (their bookings), mentors (their confirmed sessions) and admins
 /// (all bookings) — the backend filters by the caller's role.
@@ -37,6 +105,16 @@ class Booking {
   final String remarks;
   final DateTime? createdAt;
   final List<BookingLog> logs;
+  final String scheduleCadence; // recurring | single | ''
+  final List<ReservedSlot> reservedSlots;
+  // Manual payment collection
+  final String paymentFrequency; // daily | weekly | monthly | ''
+  final DateTime? classStartDate;
+  final DateTime? nextDueDate; // null until admin approves
+  final String rejectionReason;
+  final List<PaymentRecord> payments;
+  final int daysOverdue; // server-computed on /payments/due (else 0)
+  final String dueStatus; // overdue | today | upcoming | ''
 
   const Booking({
     required this.id,
@@ -54,7 +132,30 @@ class Booking {
     required this.remarks,
     required this.createdAt,
     required this.logs,
+    this.scheduleCadence = '',
+    this.reservedSlots = const [],
+    this.paymentFrequency = '',
+    this.classStartDate,
+    this.nextDueDate,
+    this.rejectionReason = '',
+    this.payments = const [],
+    this.daysOverdue = 0,
+    this.dueStatus = '',
   });
+
+  /// "day" / "week" / "month" — for "₹500/month" style labels.
+  String get frequencyPerLabel {
+    switch (paymentFrequency) {
+      case 'daily':
+        return 'day';
+      case 'weekly':
+        return 'week';
+      case 'monthly':
+        return 'month';
+      default:
+        return '';
+    }
+  }
 
   factory Booking.fromJson(Map<String, dynamic> json) {
     final studentNameField = (json['studentName'] ?? '').toString().trim();
@@ -80,6 +181,26 @@ class Booking {
       }
     }
 
+    final reserved = <ReservedSlot>[];
+    final rawReserved = json['reservedSlots'];
+    if (rawReserved is List) {
+      for (final r in rawReserved) {
+        if (r is Map) {
+          reserved.add(ReservedSlot.fromJson(r.cast<String, dynamic>()));
+        }
+      }
+    }
+
+    final paymentList = <PaymentRecord>[];
+    final rawPayments = json['payments'];
+    if (rawPayments is List) {
+      for (final p in rawPayments) {
+        if (p is Map) {
+          paymentList.add(PaymentRecord.fromJson(p.cast<String, dynamic>()));
+        }
+      }
+    }
+
     return Booking(
       id: (json['_id'] ?? json['id'] ?? '').toString(),
       studentName: studentName,
@@ -96,6 +217,17 @@ class Booking {
       remarks: (json['remarks'] ?? '').toString(),
       createdAt: _date(json['createdAt']),
       logs: logs,
+      scheduleCadence: (json['scheduleCadence'] ?? '').toString(),
+      reservedSlots: reserved,
+      paymentFrequency: (json['paymentFrequency'] ?? '').toString(),
+      classStartDate: _date(json['classStartDate']),
+      nextDueDate: _date(json['nextDueDate']),
+      rejectionReason: (json['rejectionReason'] ?? '').toString(),
+      payments: paymentList,
+      daysOverdue: json['daysOverdue'] is num
+          ? (json['daysOverdue'] as num).toInt()
+          : 0,
+      dueStatus: (json['dueStatus'] ?? '').toString(),
     );
   }
 }

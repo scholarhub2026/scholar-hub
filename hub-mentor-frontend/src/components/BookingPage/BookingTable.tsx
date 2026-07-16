@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Pencil, Link2, CalendarX, Search, Trash2 } from "lucide-react";
+import { Pencil, Check, X, CalendarX, Search, Trash2 } from "lucide-react";
 import DashboardLayout from "../dashboard/DashboardLayout";
 import PaginationControl from "../ui/PaginationController";
 import {
@@ -14,14 +14,15 @@ import { useBookingsQuery } from "@/api/booking/getBookings";
 import { useAuth } from "@/auth/AuthProvider";
 import { roleSlug } from "@/config/roles";
 import { handleOpenModal } from "@/contexts/modal-state";
-import { useCreatePaymentLinkMutation } from "@/api/booking/create-payment-link";
-import { useUpdateBookingMutation } from "@/api/booking/update-booking";
+import {
+  useApproveBookingMutation,
+  useRejectBookingMutation,
+} from "@/api/booking/moderate-booking";
 import { useDeleteBookingMutation } from "@/api/booking/delete-booking";
 import { useCancelBookingMutation } from "@/api/booking/cancel-booking";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Skeleton } from "../ui/skeleton";
-import { makePayment } from "@/lib/payment-gateway";
 import PageHeader from "@/components/shared/PageHeader";
 import StatusBadge from "@/components/shared/StatusBadge";
 
@@ -29,6 +30,59 @@ const HEAD = "px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slat
 
 const PAYMENT_LABEL: Record<string, string> = {
   completed: "paid",
+};
+
+const FREQ_SHORT: Record<string, string> = {
+  daily: "day",
+  weekly: "wk",
+  monthly: "mo",
+};
+
+/** "₹500/mo · Due 16 Aug" payment cell for confirmed manual-collection bookings. */
+const PaymentCell = ({ booking }) => {
+  if (booking.bookingStatus === "confirmed" && booking.nextDueDate) {
+    const due = new Date(booking.nextDueDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const overdueDays = Math.max(
+      0,
+      Math.round((today.getTime() - due.getTime()) / 86_400_000),
+    );
+    const dueLabel = due.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      timeZone: "UTC",
+    });
+    return (
+      <div className="text-sm">
+        <div className="font-semibold text-slate-800">
+          ₹{booking.totalAmount}/{FREQ_SHORT[booking.paymentFrequency] ?? "mo"}
+        </div>
+        <div
+          className={
+            overdueDays > 0
+              ? "font-medium text-red-600"
+              : due.getTime() === today.getTime()
+                ? "font-medium text-amber-600"
+                : "text-slate-500"
+          }
+        >
+          {overdueDays > 0 ? `Overdue ${overdueDays}d` : `Due ${dueLabel}`}
+        </div>
+      </div>
+    );
+  }
+  // Legacy / pending / cancelled rows keep the status badge.
+  return (
+    <StatusBadge
+      status={
+        booking.totalAmount > 0
+          ? (PAYMENT_LABEL[booking.paymentStatus?.toLowerCase()] ??
+            (booking.paymentStatus || "pending"))
+          : "free"
+      }
+    />
+  );
 };
 
 const BookingTable = () => {
@@ -58,8 +112,10 @@ const BookingTable = () => {
     limit,
     search: debouncedSearch,
   });
-  const { mutate: createLink } = useCreatePaymentLinkMutation();
-  const { mutate: updateBooking } = useUpdateBookingMutation();
+  const { mutate: approveBooking, isPending: isApproving } =
+    useApproveBookingMutation();
+  const { mutate: rejectBooking, isPending: isRejecting } =
+    useRejectBookingMutation();
   const { mutate: deleteBooking, isPending: isDeleting } =
     useDeleteBookingMutation();
 
@@ -84,62 +140,32 @@ const BookingTable = () => {
     }
   };
 
-  // Student's action for a row: paid → "Paid", cancelled → "Cancelled",
-  // otherwise Make Payment (if priced) + Cancel.
+  // Student's action for a row: no online payment anymore — bookings await
+  // admin approval, and fees are collected in person per period.
   const renderStudentAction = (booking) => {
-    const pay = booking.paymentStatus?.toLowerCase();
     const status = booking.bookingStatus?.toLowerCase();
 
-    if (status === "cancelled" || pay === "cancelled") {
+    if (status === "cancelled") {
       return <span className="text-sm text-slate-400">Cancelled</span>;
-    }
-    if (pay === "completed" || pay === "paid") {
-      return (
-        <span className="text-sm font-medium text-emerald-600">Paid</span>
-      );
     }
     return (
       <div className="flex items-center justify-end gap-2">
-        {booking.totalAmount > 0 ? (
-          <Button size="sm" onClick={() => payForBooking(booking)}>
-            Make Payment
-          </Button>
-        ) : (
-          <span className="text-sm text-slate-400">No payment due</span>
+        {status === "pending" && (
+          <span className="text-sm text-amber-600">Awaiting approval</span>
         )}
-        <Button
-          variant="outline"
-          size="sm"
-          className="text-red-600 hover:text-red-700"
-          disabled={isCancelling}
-          onClick={() => handleCancel(booking)}
-        >
-          Cancel
-        </Button>
+        {status !== "completed" && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-red-600 hover:text-red-700"
+            disabled={isCancelling}
+            onClick={() => handleCancel(booking)}
+          >
+            Cancel
+          </Button>
+        )}
       </div>
     );
-  };
-
-  // Open Razorpay for an existing (pending) booking, then mark it paid on success.
-  const payForBooking = (booking) => {
-    makePayment({
-      totalAmount: booking.totalAmount,
-      orderId: booking._id,
-      bookingId: booking._id,
-      studentName: booking?.studentName,
-      email: booking.email,
-      phone: booking.phone,
-      onSuccess: (rp) => {
-        updateBooking({
-          bookingId: booking._id,
-          updateData: {
-            paymentStatus: "completed",
-            bookingStatus: "confirmed",
-            transactionId: rp.razorpay_payment_id,
-          },
-        });
-      },
-    });
   };
 
   const bookings = data?.bookings || [];
@@ -150,14 +176,23 @@ const BookingTable = () => {
     handleOpenModal("edit-booking", { booking });
   };
 
-  const createPaymentLink = (booking) => {
-    createLink({
-      amount: booking.totalAmount,
-      name: booking?.studentName,
-      email: booking.studentId?.email,
-      contact: booking.phone,
-      orderId: booking._id,
-    });
+  const handleApprove = (booking) => {
+    if (
+      window.confirm(
+        `Approve ${booking.studentName || "this student"}'s booking? The student and mentor will be notified and the payment schedule starts.`,
+      )
+    ) {
+      approveBooking(booking._id);
+    }
+  };
+
+  const handleReject = (booking) => {
+    const reason = window.prompt(
+      "Reason for rejection (optional — shared with the student):",
+      "",
+    );
+    if (reason === null) return; // dismissed
+    rejectBooking({ bookingId: booking._id, reason: reason.trim() || undefined });
   };
 
   const title = user.isMentor ? "Schedule" : user.isStudent ? "My Bookings" : "Bookings";
@@ -267,21 +302,37 @@ const BookingTable = () => {
                         <StatusBadge status={booking.bookingStatus} />
                       </TableCell>
                       <TableCell className="px-4">
-                        <StatusBadge
-                          status={
-                            booking.totalAmount > 0
-                              ? (PAYMENT_LABEL[
-                                  booking.paymentStatus?.toLowerCase()
-                                ] ??
-                                (booking.paymentStatus || "pending"))
-                              : "free"
-                          }
-                        />
+                        <PaymentCell booking={booking} />
                       </TableCell>
 
                       <TableCell className="px-4 text-right">
                         {user.isAdmin && (
                           <div className="flex justify-end gap-1">
+                            {booking.bookingStatus === "pending" && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  className="bg-emerald-600 hover:bg-emerald-700"
+                                  onClick={() => handleApprove(booking)}
+                                  disabled={isApproving || isRejecting}
+                                  title="Approve — notifies student & mentor"
+                                >
+                                  <Check className="mr-1.5 h-4 w-4" />
+                                  Approve
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-red-600 hover:text-red-700"
+                                  onClick={() => handleReject(booking)}
+                                  disabled={isApproving || isRejecting}
+                                  title="Reject with an optional reason"
+                                >
+                                  <X className="mr-1.5 h-4 w-4" />
+                                  Reject
+                                </Button>
+                              </>
+                            )}
                             <Button
                               variant="ghost"
                               size="sm"
@@ -290,16 +341,6 @@ const BookingTable = () => {
                             >
                               <Pencil className="mr-1.5 h-4 w-4" />
                               Edit
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-slate-500 hover:text-primary"
-                              onClick={() => createPaymentLink(booking)}
-                              title="Send a Razorpay payment link"
-                            >
-                              <Link2 className="mr-1.5 h-4 w-4" />
-                              Payment Link
                             </Button>
                             <Button
                               variant="ghost"

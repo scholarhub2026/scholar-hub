@@ -30,12 +30,14 @@ const EditBookings = () => {
  const { register, handleSubmit, setValue, formState: { errors } } = useForm<{
   paymentStatus: string;
   bookingStatus: string;
+  paymentFrequency: string;
   remarks: string;
   totalAmount:string;
 }>({
   defaultValues: {
     paymentStatus: booking?.paymentStatus || "pending",
     bookingStatus: booking?.bookingStatus || "pending",
+    paymentFrequency: booking?.paymentFrequency || "monthly",
     remarks: booking?.remarks || "",
     totalAmount:booking?.totalAmount
   },
@@ -120,8 +122,26 @@ const EditBookings = () => {
             </p>
           )}
         </div>
+        {/* Payment Frequency (fee is per period, collected manually) */}
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="paymentFrequency">Payment Frequency</Label>
+          <Select
+            onValueChange={(value) => setValue("paymentFrequency", value)}
+            defaultValue={booking.paymentFrequency || "monthly"}
+          >
+            <SelectTrigger className="w-full border border-gray-300 rounded-md px-3 py-2 text-left capitalize">
+              <SelectValue placeholder="Select Frequency" />
+            </SelectTrigger>
+            <SelectContent className="w-full border border-gray-300 rounded-md">
+              <SelectItem value="daily">Daily</SelectItem>
+              <SelectItem value="weekly">Weekly</SelectItem>
+              <SelectItem value="monthly">Monthly</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
          <div className="flex flex-col gap-2">
-          <Label htmlFor="totalAmount">Total Amount</Label>
+          <Label htmlFor="totalAmount">Total Amount (per period)</Label>
           <Input
             id="totalAmount"
             placeholder="Enter total amount"

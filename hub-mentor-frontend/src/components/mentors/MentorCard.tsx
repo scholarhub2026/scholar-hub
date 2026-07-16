@@ -3,7 +3,14 @@ import { Link } from "react-router-dom";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import moment from "moment";
+
+type WeeklySlot = {
+  _id?: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  isActive?: boolean;
+};
 
 export interface MentorProps {
   id: string;
@@ -13,8 +20,10 @@ export interface MentorProps {
   rating: number;
   hourlyRate: number;
   image: string;
-  availability: string;
+  availability?: WeeklySlot[];
 }
+
+const DAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const MentorCard: React.FC<MentorProps> = ({
   id,
@@ -71,9 +80,14 @@ const MentorCard: React.FC<MentorProps> = ({
         </div>
         <div className="flex justify-between items-center">
           <div className="text-sm text-muted-foreground">
-            {availability?.map((element) => (
-              <div key={element.id}>{moment(element.time).format("h:mm A")}</div>
-            ))}
+            {availability
+              ?.filter((el) => el.isActive !== false)
+              .slice(0, 3)
+              .map((el, i) => (
+                <div key={el._id ?? i}>
+                  {DAY_SHORT[el.dayOfWeek]} {el.startTime}–{el.endTime}
+                </div>
+              ))}
           </div>
 
           {/* <div className="font-medium">${hourlyRate}/hour</div> */}

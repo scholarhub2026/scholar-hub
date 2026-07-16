@@ -5,6 +5,110 @@ num _toNum(dynamic value) {
   return 0;
 }
 
+/// Helper to coerce dynamic values into `int`.
+int _toInt(dynamic value, [int fallback = 0]) {
+  if (value is num) return value.toInt();
+  if (value is String) return int.tryParse(value) ?? fallback;
+  return fallback;
+}
+
+/// A recurring weekly availability window on a mentor's schedule, e.g.
+/// Monday 18:00–19:00. `dayOfWeek` follows the JS/`getDay()` convention
+/// (0 = Sunday … 6 = Saturday) to match the backend.
+///
+/// Base fields come from a mentor's `weekly_availability`. When loaded via
+/// `GET /mentor/:id/availability` the slot is also annotated with
+/// [recurringRemaining] and [dateHolds] so the client can show remaining seats.
+class AvailabilitySlot {
+  final String id;
+  final int dayOfWeek;
+  final String startTime; // "HH:mm" (24h)
+  final String endTime;
+  final int capacity; // 1 = 1-on-1, >1 = group
+  final bool isActive;
+  final int? recurringRemaining; // seats left for a recurring hold
+  final Map<String, int> dateHolds; // "YYYY-MM-DD" -> single-session holds
+
+  const AvailabilitySlot({
+    required this.id,
+    required this.dayOfWeek,
+    required this.startTime,
+    required this.endTime,
+    this.capacity = 1,
+    this.isActive = true,
+    this.recurringRemaining,
+    this.dateHolds = const {},
+  });
+
+  bool get isGroup => capacity > 1;
+
+  static const _dayShort = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  String get dayShort =>
+      (dayOfWeek >= 0 && dayOfWeek < 7) ? _dayShort[dayOfWeek] : '';
+
+  String get rangeLabel => '$startTime–$endTime';
+
+  /// e.g. "Mon 18:00–19:00".
+  String get label => '$dayShort $rangeLabel';
+
+  /// Seats left for a recurring booking (falls back to capacity when the
+  /// enriched availability data hasn't been loaded).
+  int get recurringLeft => recurringRemaining ?? capacity;
+
+  /// Seats left on a specific calendar day: recurring seats minus that day's
+  /// single-session holds. `dateKey` is "YYYY-MM-DD".
+  int remainingOn(String dateKey) =>
+      (recurringRemaining ?? capacity) - (dateHolds[dateKey] ?? 0);
+
+  factory AvailabilitySlot.fromJson(Map<String, dynamic> json) {
+    final holds = <String, int>{};
+    final rawHolds = json['dateHolds'];
+    if (rawHolds is Map) {
+      rawHolds.forEach((k, v) => holds[k.toString()] = _toInt(v));
+    }
+    return AvailabilitySlot(
+      id: (json['_id'] ?? json['id'] ?? '').toString(),
+      dayOfWeek: _toInt(json['dayOfWeek']),
+      startTime: (json['startTime'] ?? '').toString(),
+      endTime: (json['endTime'] ?? '').toString(),
+      capacity: _toInt(json['capacity'], 1),
+      isActive: json['isActive'] != false,
+      recurringRemaining:
+          json['recurringRemaining'] == null ? null : _toInt(json['recurringRemaining']),
+      dateHolds: holds,
+    );
+  }
+
+  /// Payload shape for `PUT /mentor/:id/availability` (template edits).
+  Map<String, dynamic> toJson() => {
+        if (id.isNotEmpty) '_id': id,
+        'dayOfWeek': dayOfWeek,
+        'startTime': startTime,
+        'endTime': endTime,
+        'capacity': capacity,
+        'isActive': isActive,
+      };
+
+  AvailabilitySlot copyWith({
+    int? dayOfWeek,
+    String? startTime,
+    String? endTime,
+    int? capacity,
+    bool? isActive,
+  }) =>
+      AvailabilitySlot(
+        id: id,
+        dayOfWeek: dayOfWeek ?? this.dayOfWeek,
+        startTime: startTime ?? this.startTime,
+        endTime: endTime ?? this.endTime,
+        capacity: capacity ?? this.capacity,
+        isActive: isActive ?? this.isActive,
+        recurringRemaining: recurringRemaining,
+        dateHolds: dateHolds,
+      );
+}
+
 /// A subject offered within a selected class.
 class MentorSubject {
   final String id;
@@ -114,6 +218,7 @@ class Mentor {
   final String paymentHolder;
   final String paymentUpi;
   final List<String> availableSlots;
+  final List<AvailabilitySlot> weeklyAvailability;
   final List<MentorClass> classes;
 
   const Mentor({
@@ -140,8 +245,20 @@ class Mentor {
     required this.paymentHolder,
     required this.paymentUpi,
     required this.availableSlots,
+    this.weeklyAvailability = const [],
     required this.classes,
   });
+
+  /// Active availability slots, sorted by day (Mon-first) then start time.
+  List<AvailabilitySlot> get activeSlots {
+    final list = weeklyAvailability.where((s) => s.isActive).toList();
+    int mondayFirst(int d) => d == 0 ? 7 : d; // Sun(0) -> 7 so Mon leads
+    list.sort((a, b) {
+      final byDay = mondayFirst(a.dayOfWeek).compareTo(mondayFirst(b.dayOfWeek));
+      return byDay != 0 ? byDay : a.startTime.compareTo(b.startTime);
+    });
+    return list;
+  }
 
   String get fullName => '$firstName $lastName'.trim();
 
@@ -224,6 +341,16 @@ class Mentor {
       }
     }
 
+    final weekly = <AvailabilitySlot>[];
+    final rawWeekly = json['weekly_availability'];
+    if (rawWeekly is List) {
+      for (final w in rawWeekly) {
+        if (w is Map) {
+          weekly.add(AvailabilitySlot.fromJson(w.cast<String, dynamic>()));
+        }
+      }
+    }
+
     final pd = json['payment_details'];
     String pdField(String key) =>
         (pd is Map ? (pd[key] ?? '') : '').toString();
@@ -253,6 +380,7 @@ class Mentor {
       paymentHolder: pdField('account_holder_name'),
       paymentUpi: pdField('upi_id'),
       availableSlots: slots,
+      weeklyAvailability: weekly,
       classes: classes,
     );
   }

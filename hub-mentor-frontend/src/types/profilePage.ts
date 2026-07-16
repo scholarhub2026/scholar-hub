@@ -8,8 +8,13 @@ export type ProfileFormData = {
   confirmPassword: string;
   experience: string;
   education_qualification: string;
-  available_slot: {
-    time: string;
+  weekly_availability: {
+    _id?: string;
+    dayOfWeek: number;
+    startTime: string;
+    endTime: string;
+    capacity: number;
+    isActive: boolean;
   }[];
   rating: string;
   location: string;

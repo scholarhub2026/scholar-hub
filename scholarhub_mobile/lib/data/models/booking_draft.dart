@@ -4,6 +4,91 @@ enum BookingType { full, individual, multiple }
 
 enum SessionMode { online, offline }
 
+/// How a student books a slot: a recurring weekly hold or a one-off session.
+enum ScheduleCadence { recurring, single }
+
+/// How often the class fee is collected (manually, after classes). The
+/// booking's total amount is the fee PER period.
+enum PaymentFrequency { daily, weekly, monthly }
+
+extension PaymentFrequencyX on PaymentFrequency {
+  String get apiValue {
+    switch (this) {
+      case PaymentFrequency.daily:
+        return 'daily';
+      case PaymentFrequency.weekly:
+        return 'weekly';
+      case PaymentFrequency.monthly:
+        return 'monthly';
+    }
+  }
+
+  String get label {
+    switch (this) {
+      case PaymentFrequency.daily:
+        return 'Daily';
+      case PaymentFrequency.weekly:
+        return 'Weekly';
+      case PaymentFrequency.monthly:
+        return 'Monthly';
+    }
+  }
+
+  String get perLabel {
+    switch (this) {
+      case PaymentFrequency.daily:
+        return 'day';
+      case PaymentFrequency.weekly:
+        return 'week';
+      case PaymentFrequency.monthly:
+        return 'month';
+    }
+  }
+}
+
+extension ScheduleCadenceX on ScheduleCadence {
+  String get apiValue =>
+      this == ScheduleCadence.recurring ? 'recurring' : 'single';
+
+  String get label =>
+      this == ScheduleCadence.recurring ? 'Weekly' : 'Single session';
+}
+
+/// "YYYY-MM-DD" from a picked calendar day. Uses the local date components so
+/// the day the student sees is exactly what the backend records (no TZ shift).
+String slotDateKey(DateTime d) {
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${d.year}-${two(d.month)}-${two(d.day)}';
+}
+
+/// A slot the student selected during the schedule step.
+class SelectedSlot {
+  final String slotId;
+  final int dayOfWeek;
+  final String startTime;
+  final String endTime;
+  final ScheduleCadence cadence;
+  final DateTime? date; // required for single sessions
+
+  const SelectedSlot({
+    required this.slotId,
+    required this.dayOfWeek,
+    required this.startTime,
+    required this.endTime,
+    required this.cadence,
+    this.date,
+  });
+
+  Map<String, dynamic> toPayload() => {
+        'slotId': slotId,
+        'dayOfWeek': dayOfWeek,
+        'startTime': startTime,
+        'endTime': endTime,
+        'cadence': cadence.apiValue,
+        if (date != null) 'date': slotDateKey(date!),
+      };
+}
+
 extension SessionModeX on SessionMode {
   String get apiValue => this == SessionMode.online ? 'online' : 'offline';
 
@@ -45,6 +130,14 @@ class BookingDraft {
   SessionMode sessionMode = SessionMode.online;
   final Set<String> selectedSubjectIds = {};
 
+  // Scheduling
+  ScheduleCadence scheduleCadence = ScheduleCadence.recurring;
+  final List<SelectedSlot> selectedSlots = [];
+
+  // Manual payment collection — fees are collected AFTER classes.
+  PaymentFrequency paymentFrequency = PaymentFrequency.monthly;
+  DateTime? classStartDate; // recurring only; single derives it
+
   // Student details
   String studentName = '';
   String email = '';
@@ -85,6 +178,19 @@ class BookingDraft {
     return true;
   }
 
+  /// Schedule step: at least one slot, every single-session slot has a date,
+  /// and recurring bookings picked a class start date.
+  bool get isScheduleValid {
+    if (selectedSlots.isEmpty) return false;
+    for (final s in selectedSlots) {
+      if (s.cadence == ScheduleCadence.single && s.date == null) return false;
+    }
+    if (scheduleCadence == ScheduleCadence.recurring && classStartDate == null) {
+      return false;
+    }
+    return true;
+  }
+
   bool get isStepTwoValid =>
       studentName.trim().isNotEmpty &&
       email.trim().isNotEmpty &&
@@ -120,11 +226,26 @@ class BookingDraft {
       'bookingType': bookingType!.apiValue,
       'selectedSubjects': subjects.map((s) => s.name).toList(),
       'totalAmount': totalAmount,
-      'paymentType': '',
-      'paymentStatus': 'pending',
-      'transactionId': '',
-      'bookingDate': null,
-      'orderId': DateTime.now().millisecondsSinceEpoch,
+      'scheduleCadence': scheduleCadence.apiValue,
+      'reservedSlots': selectedSlots.map((s) => s.toPayload()).toList(),
+      'bookingDate': _earliestSingleDateKey(),
+      // Manual collection: fee per period + when classes begin. Single-session
+      // bookings derive the start from their earliest session date server-side.
+      'paymentFrequency': paymentFrequency.apiValue,
+      'classStartDate': scheduleCadence == ScheduleCadence.recurring
+          ? (classStartDate != null ? slotDateKey(classStartDate!) : null)
+          : _earliestSingleDateKey(),
     };
+  }
+
+  /// Earliest single-session date (as "YYYY-MM-DD") for `bookingDate`, or null
+  /// for recurring-only bookings.
+  String? _earliestSingleDateKey() {
+    final dates = selectedSlots
+        .where((s) => s.cadence == ScheduleCadence.single && s.date != null)
+        .map((s) => s.date!)
+        .toList()
+      ..sort();
+    return dates.isEmpty ? null : slotDateKey(dates.first);
   }
 }

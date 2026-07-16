@@ -15,8 +15,13 @@ import mongoose, { Document} from 'mongoose'
   // Mentor Additional Details
   experience?: string
   education_qualification?: string
-  available_slot?: {
-    time: string
+  weekly_availability?: {
+    _id?: mongoose.Types.ObjectId
+    dayOfWeek: number // 0=Sun … 6=Sat
+    startTime: string // "HH:mm"
+    endTime: string // "HH:mm"
+    capacity: number // 1 = 1-on-1, >1 = group
+    isActive: boolean
   }[]
   rating?: string
   location?: string

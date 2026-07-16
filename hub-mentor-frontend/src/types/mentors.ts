@@ -15,9 +15,13 @@ export interface TutorData {
   isActive: boolean;
   message: string;
   completed_profile: boolean;
-  available_slot: {
-    time: string; // ISO date string
-    _id: string;
+  weekly_availability: {
+    _id?: string;
+    dayOfWeek: number; // 0=Sun … 6=Sat
+    startTime: string; // "HH:mm"
+    endTime: string; // "HH:mm"
+    capacity: number;
+    isActive: boolean;
   }[];
   createdAt: string; // ISO date string
   updatedAt: string; // ISO date string

@@ -40,7 +40,12 @@ class _AppShellState extends State<AppShell> {
     final pending = NotificationRouter.instance.pending.value;
     if (pending == null || !mounted) return;
     final target = switch (pending.type) {
-      'booking' => 2, // Bookings
+      'booking' ||
+      'booking_approved' ||
+      'booking_rejected' ||
+      'payment_due' ||
+      'payment_recorded' =>
+        2, // Bookings
       _ => 0, // Home
     };
     if (target != _index) setState(() => _index = target);

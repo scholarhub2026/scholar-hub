@@ -9,6 +9,7 @@ import '../../state/auth/auth_cubit.dart';
 import '../../state/auth/auth_state.dart';
 import '../../widgets/app_snackbar.dart';
 import '../../widgets/network_avatar.dart';
+import '../mentor/availability/mentor_availability_screen.dart';
 import '../profile/update_password_screen.dart';
 
 /// Shared settings panel for the admin & mentor shells: account summary,
@@ -86,6 +87,17 @@ class SettingsScreen extends StatelessWidget {
           ),
         ),
         SizedBox(height: 22.h),
+        if (user?.role == 'TUTOR' && (user?.id.isNotEmpty ?? false))
+          _tile(
+            icon: LucideIcons.calendarClock,
+            title: 'Weekly Availability',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => MentorAvailabilityScreen(mentorId: user!.id),
+              ),
+            ),
+          ),
         _tile(
           icon: LucideIcons.keyRound,
           title: 'Update Password',

@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/card";
 import { useGetMentorQuery } from "@/api/mentor/get-mentor";
 import { TutorData } from "@/types/mentors";
-import moment from "moment";
 import { Label } from "@/components/ui/label";
 
 const MentorProfile = () => {
@@ -162,11 +161,16 @@ const MentorProfile = () => {
                       <circle cx="12" cy="12" r="10" />
                       <polyline points="12 6 12 12 16 14" />
                     </svg>
-                    {mentor.available_slot.map((slot, index) => (
-                      <Badge key={index} variant="outline">
-                        {moment(slot.time).format("LT")}
-                      </Badge>
-                    ))}
+                    {(mentor.weekly_availability ?? [])
+                      .filter((slot) => slot.isActive !== false)
+                      .map((slot, index) => (
+                        <Badge key={index} variant="outline">
+                          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][
+                            slot.dayOfWeek
+                          ]}{" "}
+                          {slot.startTime}–{slot.endTime}
+                        </Badge>
+                      ))}
                     {/* <span>{mentor.}</span> */}
                   </div>
                 </div>

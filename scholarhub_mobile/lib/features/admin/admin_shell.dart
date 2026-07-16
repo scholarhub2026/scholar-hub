@@ -15,6 +15,7 @@ import 'classes/admin_classes_screen.dart';
 import 'dashboard/admin_dashboard_screen.dart';
 import 'inquiries/admin_inquiries_screen.dart';
 import 'mentors/admin_mentors_screen.dart';
+import 'payments/admin_payments_screen.dart';
 import 'subjects/admin_subjects_screen.dart';
 
 class _AdminDest {
@@ -30,6 +31,7 @@ const _destinations = <_AdminDest>[
   _AdminDest(LucideIcons.graduationCap, 'Classes'),
   _AdminDest(LucideIcons.bookOpen, 'Subjects'),
   _AdminDest(LucideIcons.calendarCheck, 'Bookings'),
+  _AdminDest(LucideIcons.wallet, 'Payments'),
   _AdminDest(LucideIcons.megaphone, 'Ads'),
   _AdminDest(LucideIcons.settings, 'Settings'),
 ];
@@ -65,6 +67,7 @@ class _AdminShellState extends State<AdminShell> {
     if (pending == null || !mounted) return;
     final target = switch (pending.type) {
       'booking' => 5, // Bookings
+      'payment_due' => 6, // Payments
       'inquiry' => 1, // Enquiries
       'mentor_application' || 'mentor_pending' => 2, // Mentors
       _ => 0,
@@ -101,6 +104,7 @@ class _AdminShellState extends State<AdminShell> {
           AdminClassesScreen(),
           AdminSubjectsScreen(),
           AdminBookingsScreen(),
+          AdminPaymentsScreen(),
           AdminAdsScreen(),
           SettingsScreen(),
         ],

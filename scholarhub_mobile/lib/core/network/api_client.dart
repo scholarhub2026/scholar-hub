@@ -73,6 +73,17 @@ class ApiClient {
     }
   }
 
+  Future<Response<dynamic>> patch(
+    String path, {
+    Object? data,
+  }) async {
+    try {
+      return await _dio.patch(path, data: data);
+    } on DioException catch (e) {
+      throw _toException(e);
+    }
+  }
+
   Future<Response<dynamic>> delete(
     String path, {
     Object? data,

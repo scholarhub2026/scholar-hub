@@ -40,6 +40,7 @@ export const NAVIGATION: Record<RoleSlug, NavItem[]> = {
     { name: "Classes", href: "/admin/classes", icon: CalendarDays },
     { name: "Subjects", href: "/admin/subjects", icon: BookOpen },
     { name: "Bookings", href: "/admin/bookings", icon: BarChart3 },
+    { name: "Payments", href: "/admin/payments", icon: Wallet },
     { name: "Ads", href: "/admin/ads", icon: Megaphone },
     { name: "Reviews", href: "/admin/reviews", icon: Star },
     { name: "Referrals", href: "/admin/referrals", icon: Gift },

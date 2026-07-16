@@ -6,7 +6,7 @@ import '../../../core/theme/app_colors.dart';
 
 class BookingProgress extends StatelessWidget {
   final int currentStep;
-  static const _labels = ['Plan', 'Details', 'Payment', 'Done'];
+  static const _labels = ['Plan', 'Schedule', 'Details', 'Review', 'Done'];
 
   const BookingProgress({super.key, required this.currentStep});
 
@@ -82,9 +82,11 @@ class BookingProgress extends StatelessWidget {
       case 0:
         return LucideIcons.bookOpen;
       case 1:
-        return LucideIcons.user;
+        return LucideIcons.calendarClock;
       case 2:
-        return LucideIcons.creditCard;
+        return LucideIcons.user;
+      case 3:
+        return LucideIcons.clipboardCheck;
       default:
         return LucideIcons.check;
     }

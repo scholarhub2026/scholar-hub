@@ -3,10 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_colors.dart';
-import '../../core/utils/formatters.dart';
 import '../../data/models/booking_draft.dart';
 import '../../data/models/mentor.dart';
 import '../../data/services/booking_service.dart';
@@ -17,6 +15,7 @@ import '../../widgets/primary_button.dart';
 import 'widgets/booking_progress.dart';
 import 'widgets/booking_confirmation.dart';
 import 'widgets/booking_plan_step.dart';
+import 'widgets/booking_schedule_step.dart';
 import 'widgets/booking_review_step.dart';
 
 class BookingScreen extends StatefulWidget {
@@ -36,7 +35,6 @@ class _BookingScreenState extends State<BookingScreen> {
 
   int _step = 0;
   bool _submitting = false;
-  String? _bookingId;
 
   @override
   void initState() {
@@ -55,15 +53,33 @@ class _BookingScreenState extends State<BookingScreen> {
       AppSnackbar.error(context, _stepOneHint());
       return;
     }
-    if (_step == 1 && !_draft.isStepTwoValid) {
+    if (_step == 1 && !_draft.isScheduleValid) {
+      AppSnackbar.error(context, _scheduleHint());
+      return;
+    }
+    if (_step == 2 && !_draft.isStepTwoValid) {
       AppSnackbar.error(context, 'Please fill in your name, email and phone.');
       return;
     }
-    if (_step == 2) {
+    if (_step == 3) {
       _submit();
       return;
     }
     setState(() => _step++);
+  }
+
+  /// Tells the student what's missing on the schedule step.
+  String _scheduleHint() {
+    if (_draft.selectedSlots.isEmpty) {
+      return _draft.scheduleCadence == ScheduleCadence.single
+          ? 'Pick a date and choose at least one slot.'
+          : 'Please select at least one weekly slot.';
+    }
+    if (_draft.scheduleCadence == ScheduleCadence.recurring &&
+        _draft.classStartDate == null) {
+      return 'Pick your class start date.';
+    }
+    return 'Please complete your schedule selection.';
   }
 
   /// Tells the user exactly which booking selection is still missing.
@@ -97,34 +113,15 @@ class _BookingScreenState extends State<BookingScreen> {
           ? user!.id
           : _fallbackStudentId;
 
-      _bookingId = await _service.createBooking(_draft, studentId: studentId);
-
-      // Try to generate a Razorpay payment link and open it.
-      String? paymentUrl;
-      try {
-        paymentUrl = await _service.createPaymentLink(
-          amount: _draft.totalAmount,
-          name: _draft.studentName,
-          email: _draft.email,
-          contact: _draft.phone,
-          orderId: _bookingId,
-        );
-      } catch (_) {
-        // Payment link is best-effort; the booking is already recorded.
-      }
+      // No payment here — the booking goes to the admin for approval and
+      // fees are collected manually per period after classes begin.
+      await _service.createBooking(_draft, studentId: studentId);
 
       if (!mounted) return;
       setState(() {
         _submitting = false;
-        _step = 3;
+        _step = 4;
       });
-
-      if (paymentUrl != null && paymentUrl.isNotEmpty) {
-        await launchUrl(
-          Uri.parse(paymentUrl),
-          mode: LaunchMode.externalApplication,
-        );
-      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _submitting = false);
@@ -142,13 +139,13 @@ class _BookingScreenState extends State<BookingScreen> {
           icon: const Icon(LucideIcons.arrowLeft),
           onPressed: _back,
         ),
-        title: Text(_step == 3 ? 'Confirmation' : 'Book a Session'),
+        title: Text(_step == 4 ? 'Confirmation' : 'Book a Session'),
       ),
       body: Column(
         children: [
-          if (_step < 3) BookingProgress(currentStep: _step),
+          if (_step < 4) BookingProgress(currentStep: _step),
           Expanded(child: _buildStep()),
-          if (_step < 3) _buildBottomBar(),
+          if (_step < 4) _buildBottomBar(),
         ],
       ),
     );
@@ -162,8 +159,13 @@ class _BookingScreenState extends State<BookingScreen> {
           onChanged: () => setState(() {}),
         );
       case 1:
-        return _buildDetailsStep();
+        return BookingScheduleStep(
+          draft: _draft,
+          onChanged: () => setState(() {}),
+        );
       case 2:
+        return _buildDetailsStep();
+      case 3:
         return BookingReviewStep(draft: _draft);
       default:
         return BookingConfirmation(
@@ -233,7 +235,7 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   Widget _buildBottomBar() {
-    final isLast = _step == 2;
+    final isLast = _step == 3;
     return Container(
       padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w, 16.h),
       decoration: BoxDecoration(
@@ -262,10 +264,8 @@ class _BookingScreenState extends State<BookingScreen> {
             Expanded(
               flex: 2,
               child: PrimaryButton(
-                label: isLast
-                    ? 'Pay ${Formatters.rupeesPlain(_draft.totalAmount)}'
-                    : 'Continue',
-                icon: isLast ? LucideIcons.creditCard : LucideIcons.arrowRight,
+                label: isLast ? 'Confirm Booking' : 'Continue',
+                icon: isLast ? LucideIcons.check : LucideIcons.arrowRight,
                 loading: _submitting,
                 onPressed: _submitting ? null : _next,
               ),

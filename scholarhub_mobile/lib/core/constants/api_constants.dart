@@ -32,6 +32,7 @@ class ApiConstants {
   // Mentors
   static const String mentor = '/mentor';
   static String updateMentor(String id) => '/mentor/$id';
+  static String mentorAvailability(String id) => '/mentor/$id/availability';
 
   // Catalog
   static const String classes = '/classes';
@@ -41,9 +42,16 @@ class ApiConstants {
 
   // Bookings
   static const String booking = '/booking';
-  static const String createPaymentLink = '/booking/create-payment-link';
   static String bookingsByStudent(String studentId) => '/booking/$studentId';
   static String updateBooking(String bookingId) => '/booking/$bookingId';
+
+  // Manual payment collection (admin)
+  static const String duePayments = '/booking/payments/due';
+  static String approveBooking(String bookingId) =>
+      '/booking/$bookingId/approve';
+  static String rejectBooking(String bookingId) => '/booking/$bookingId/reject';
+  static String recordPayment(String bookingId) =>
+      '/booking/$bookingId/payments';
 
   // Booking session logs
   static String bookingLog(String bookingId) => '/bookingLog/$bookingId';

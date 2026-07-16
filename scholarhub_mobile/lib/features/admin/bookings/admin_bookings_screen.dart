@@ -2,13 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../data/models/booking.dart';
-import '../../../data/services/booking_service.dart';
 import '../../../state/auth/auth_cubit.dart';
 import '../../../state/paged_state.dart';
 import '../../../state/view_status.dart';
@@ -60,28 +58,80 @@ class _BookingsViewState extends State<_BookingsView> {
     }
   }
 
-  Future<void> _paymentLink(BuildContext context, Booking booking) async {
+  Future<void> _approve(BuildContext context, Booking booking) async {
+    final cubit = context.read<AdminBookingsCubit>();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Approve booking?'),
+        content: const Text(
+          'The student and mentor will be notified and the payment schedule '
+          'will start.',
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Approve')),
+        ],
+      ),
+    );
+    if (ok != true) return;
     try {
-      final url = await BookingService().createPaymentLink(
-        amount: booking.totalAmount,
-        name: booking.studentName.isEmpty ? 'Student' : booking.studentName,
-        email: booking.email,
-        contact: booking.phone,
-        orderId: booking.id,
-      );
-      if (url == null || url.isEmpty) {
-        if (context.mounted) {
-          AppSnackbar.error(context, 'Could not create a payment link.');
-        }
-        return;
-      }
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      await cubit.approve(booking.id);
+      if (context.mounted) AppSnackbar.success(context, 'Booking approved.');
     } on ApiException catch (e) {
       if (context.mounted) AppSnackbar.error(context, e.message);
     } catch (_) {
-      if (context.mounted) {
-        AppSnackbar.error(context, 'Could not create a payment link.');
-      }
+      if (context.mounted) AppSnackbar.error(context, 'Unable to approve.');
+    }
+  }
+
+  Future<void> _reject(BuildContext context, Booking booking) async {
+    final cubit = context.read<AdminBookingsCubit>();
+    final controller = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Reject booking?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('The student will be notified. Add a reason (optional):'),
+            SizedBox(height: 12.h),
+            TextField(
+              controller: controller,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                hintText: 'e.g. Mentor unavailable this term',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Reject'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final reason = controller.text.trim();
+    try {
+      await cubit.reject(booking.id, reason.isEmpty ? null : reason);
+      if (context.mounted) AppSnackbar.success(context, 'Booking rejected.');
+    } on ApiException catch (e) {
+      if (context.mounted) AppSnackbar.error(context, e.message);
+    } catch (_) {
+      if (context.mounted) AppSnackbar.error(context, 'Unable to reject.');
     }
   }
 
@@ -159,7 +209,8 @@ class _BookingsViewState extends State<_BookingsView> {
                     return _BookingCard(
                       booking: b,
                       onEdit: () => _edit(context, b),
-                      onPaymentLink: () => _paymentLink(context, b),
+                      onApprove: () => _approve(context, b),
+                      onReject: () => _reject(context, b),
                     );
                   },
                 ),
@@ -175,12 +226,14 @@ class _BookingsViewState extends State<_BookingsView> {
 class _BookingCard extends StatelessWidget {
   final Booking booking;
   final VoidCallback onEdit;
-  final VoidCallback onPaymentLink;
+  final VoidCallback onApprove;
+  final VoidCallback onReject;
 
   const _BookingCard({
     required this.booking,
     required this.onEdit,
-    required this.onPaymentLink,
+    required this.onApprove,
+    required this.onReject,
   });
 
   @override
@@ -232,10 +285,12 @@ class _BookingCard extends StatelessWidget {
                 ),
               ),
               Text(
-                Formatters.rupeesPlain(booking.totalAmount),
+                booking.frequencyPerLabel.isEmpty
+                    ? Formatters.rupeesPlain(booking.totalAmount)
+                    : '${Formatters.rupeesPlain(booking.totalAmount)}/${booking.frequencyPerLabel}',
                 style: TextStyle(
                   fontWeight: FontWeight.w800,
-                  fontSize: 16.sp,
+                  fontSize: 15.sp,
                   color: AppColors.primary,
                 ),
               ),
@@ -247,32 +302,46 @@ class _BookingCard extends StatelessWidget {
             runSpacing: 8,
             children: [
               _chip(_cap(booking.bookingStatus), _bookingColor(booking.bookingStatus)),
-              _chip('Payment: ${_cap(booking.paymentStatus)}',
-                  _paymentColor(booking.paymentStatus)),
+              if (booking.bookingStatus == 'confirmed' &&
+                  booking.nextDueDate != null)
+                _chip('Due ${Formatters.date(booking.nextDueDate)}',
+                    AppColors.warning),
               if (booking.createdAt != null)
                 _chip(Formatters.date(booking.createdAt), AppColors.textMuted),
             ],
           ),
           SizedBox(height: 12.h),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: onEdit,
-                  icon: Icon(LucideIcons.pencil, size: 16.sp),
-                  label: const Text('Edit'),
+          if (booking.bookingStatus == 'pending')
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: onApprove,
+                    icon: Icon(LucideIcons.check, size: 16.sp),
+                    label: const Text('Approve'),
+                  ),
                 ),
-              ),
-              SizedBox(width: 10.w),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: onPaymentLink,
-                  icon: Icon(LucideIcons.link, size: 16.sp),
-                  label: const Text('Payment link'),
+                SizedBox(width: 10.w),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.danger),
+                    onPressed: onReject,
+                    icon: Icon(LucideIcons.x, size: 16.sp),
+                    label: const Text('Reject'),
+                  ),
                 ),
+              ],
+            )
+          else
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: onEdit,
+                icon: Icon(LucideIcons.pencil, size: 16.sp),
+                label: const Text('Edit'),
               ),
-            ],
-          ),
+            ),
         ],
       ),
     );
@@ -306,17 +375,6 @@ class _BookingCard extends StatelessWidget {
       case 'completed':
         return AppColors.success;
       case 'cancelled':
-        return AppColors.danger;
-      default:
-        return AppColors.warning;
-    }
-  }
-
-  Color _paymentColor(String s) {
-    switch (s) {
-      case 'completed':
-        return AppColors.success;
-      case 'failed':
         return AppColors.danger;
       default:
         return AppColors.warning;

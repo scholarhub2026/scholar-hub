@@ -15,6 +15,17 @@ import { catchAsync } from '../utils/catchAsync'
 import { sendMail } from '../utils/mailService'
 import { sendPushToRole, sendPushToUser } from '../utils/pushService'
 import { rewardReferralOnBooking } from '../utils/referral'
+import {
+  getSlotUsage,
+  dateKey,
+  recurringClaimKey,
+  singleClaimKey,
+} from '../utils/availability'
+import {
+  PAYMENT_FREQUENCIES,
+  toUtcMidnight,
+  todayIST,
+} from '../utils/paymentSchedule'
 
 export const createBookingController = async (req, res) => {
   try {
@@ -41,6 +52,48 @@ export const createBookingController = async (req, res) => {
     }
 
     req.body.paymentStatus = 'pending'
+
+    // ---- Manual payment collection fields ----
+    // Frequency: optional for backward compat with older clients — default
+    // monthly. The booking's totalAmount is the fee PER period.
+    if (
+      req.body.paymentFrequency !== undefined &&
+      req.body.paymentFrequency !== '' &&
+      !PAYMENT_FREQUENCIES.includes(req.body.paymentFrequency)
+    ) {
+      return res
+        .status(400)
+        .json({ message: 'paymentFrequency must be daily, weekly or monthly' })
+    }
+    if (!req.body.paymentFrequency) req.body.paymentFrequency = 'monthly'
+
+    if (req.body.classStartDate) {
+      const raw = String(req.body.classStartDate)
+      const iso = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? `${raw}T00:00:00.000Z` : raw
+      const parsed = new Date(iso)
+      if (isNaN(parsed.getTime())) {
+        return res.status(400).json({ message: 'Invalid classStartDate' })
+      }
+      const start = toUtcMidnight(parsed)
+      if (start.getTime() < todayIST().getTime()) {
+        return res
+          .status(400)
+          .json({ message: 'Class start date must be today or later.' })
+      }
+      req.body.classStartDate = start
+    } else {
+      req.body.classStartDate = null
+    }
+
+    // Never trust schedule/approval state from the client: bookings are born
+    // pending and the payment schedule only starts on admin approval.
+    delete req.body.payments
+    delete req.body.nextDueDate
+    delete req.body.approvedAt
+    delete req.body.lastReminderAt
+    delete req.body.rejectionReason
+    req.body.bookingStatus = 'pending'
+
     // Normalize email so a returning student is matched case-insensitively
     // (and not re-created into a duplicate-key error).
     req.body.email = String(req.body.email).toLowerCase().trim()
@@ -93,8 +146,145 @@ export const createBookingController = async (req, res) => {
     if (hasClash) {
       return res.status(409).json({
         message:
-          'You already have a pending booking for this. Please pay for or cancel it before booking it again.',
+          'You already have a booking for this. Please cancel it before booking it again.',
       })
+    }
+
+    // ---- Scheduling: validate & reserve weekly slot(s) ----
+    // Legacy clients that send no reservedSlots still book (date-less), exactly
+    // as before. New clients send the slot(s) the student picked; we validate
+    // them against the mentor's template and the current seat usage.
+    const rawSlots = Array.isArray(req.body.reservedSlots)
+      ? req.body.reservedSlots
+      : []
+    if (rawSlots.length > 0) {
+      const mentor = await Auth.findOne({
+        _id: req.body.mentorId,
+        role: 'TUTOR',
+      }).select('weekly_availability')
+      if (!mentor) {
+        return res.status(404).json({ message: 'Mentor not found' })
+      }
+      const template = new Map<string, any>()
+      for (const s of (mentor as any).weekly_availability || []) {
+        template.set(s._id.toString(), s)
+      }
+
+      const usage = await getSlotUsage(req.body.mentorId)
+      const todayKey = dateKey(new Date())
+      // Count slots requested within THIS payload so two picks on the same
+      // date/slot are weighed together against capacity.
+      const reqRecurring = new Map<string, number>() // slotId -> count
+      const reqSingle = new Map<string, number>() // `${slotId}|dateKey` -> count
+
+      const built: any[] = []
+      for (const rs of rawSlots) {
+        const slotId = String(rs.slotId || '')
+        const tmpl = template.get(slotId)
+        if (!tmpl || tmpl.isActive === false) {
+          return res
+            .status(400)
+            .json({ message: 'A selected slot is no longer available.' })
+        }
+        const cadence: 'recurring' | 'single' =
+          rs.cadence === 'single' ? 'single' : 'recurring'
+        const capacity = tmpl.capacity ?? 1
+
+        let date: Date | null = null
+        if (cadence === 'single') {
+          if (!rs.date) {
+            return res
+              .status(400)
+              .json({ message: 'A date is required for a single session.' })
+          }
+          const raw = String(rs.date)
+          const iso = /^\d{4}-\d{2}-\d{2}$/.test(raw)
+            ? `${raw}T00:00:00.000Z`
+            : raw
+          const parsed = new Date(iso)
+          if (isNaN(parsed.getTime())) {
+            return res.status(400).json({ message: 'Invalid session date.' })
+          }
+          // Normalize to UTC midnight so all holds on a day share one key.
+          date = new Date(
+            Date.UTC(
+              parsed.getUTCFullYear(),
+              parsed.getUTCMonth(),
+              parsed.getUTCDate()
+            )
+          )
+          if (dateKey(date) < todayKey) {
+            return res
+              .status(400)
+              .json({ message: 'Session date must be today or later.' })
+          }
+          if (date.getUTCDay() !== tmpl.dayOfWeek) {
+            return res.status(400).json({
+              message: 'Selected date does not match the slot weekday.',
+            })
+          }
+        }
+
+        // ---- capacity check (recurring holds occupy every matching weekday) ----
+        const u = usage.get(slotId)
+        const recurringUsed = u?.recurring || 0
+        if (cadence === 'recurring') {
+          const already = reqRecurring.get(slotId) || 0
+          if (recurringUsed + already + 1 > capacity) {
+            return res
+              .status(409)
+              .json({ message: 'That slot is fully booked.' })
+          }
+          reqRecurring.set(slotId, already + 1)
+        } else {
+          const k = dateKey(date as Date)
+          const singleUsed = u?.single.get(k) || 0
+          const reqKey = `${slotId}|${k}`
+          const already = reqSingle.get(reqKey) || 0
+          if (recurringUsed + singleUsed + already + 1 > capacity) {
+            return res.status(409).json({
+              message: 'That slot is fully booked on the selected date.',
+            })
+          }
+          reqSingle.set(reqKey, already + 1)
+        }
+
+        // claimKey backstops the 1-on-1 race; group slots leave it null.
+        let claimKey: string | null = null
+        if (capacity === 1) {
+          claimKey =
+            cadence === 'recurring'
+              ? recurringClaimKey(slotId)
+              : singleClaimKey(slotId, date as Date)
+        }
+
+        built.push({
+          slotId: tmpl._id,
+          dayOfWeek: tmpl.dayOfWeek,
+          startTime: tmpl.startTime,
+          endTime: tmpl.endTime,
+          cadence,
+          date,
+          claimKey,
+        })
+      }
+
+      req.body.reservedSlots = built
+      req.body.scheduleCadence = built.every(b => b.cadence === 'single')
+        ? 'single'
+        : 'recurring'
+      const singleDates = built
+        .filter(b => b.cadence === 'single' && b.date)
+        .map(b => (b.date as Date).getTime())
+      req.body.bookingDate = singleDates.length
+        ? new Date(Math.min(...singleDates))
+        : null
+      // Single-session bookings start on their first session day.
+      if (!req.body.classStartDate && req.body.bookingDate) {
+        req.body.classStartDate = req.body.bookingDate
+      }
+    } else {
+      req.body.reservedSlots = []
     }
 
     req.body.otp = generateOTP().otp
@@ -103,7 +293,17 @@ export const createBookingController = async (req, res) => {
       ...req.body,
     })
 
-    await newBooking.save()
+    try {
+      await newBooking.save()
+    } catch (e: any) {
+      // Unique claimKey index tripped → someone grabbed the 1-on-1 slot first.
+      if (e && e.code === 11000) {
+        return res.status(409).json({
+          message: 'That slot was just taken. Please pick another.',
+        })
+      }
+      throw e
+    }
 
     // Notify the booked mentor and all admins (non-blocking — never fail the
     // booking if push is unconfigured or errors).
@@ -138,6 +338,16 @@ export const updateBookingController = async (req, res) => {
       return res.status(400).json({ message: 'Invalid bookingId' })
     }
     const updateData = req.body
+    // If this update cancels/fails the booking, also release any held seats
+    // and stop the payment schedule.
+    if (
+      updateData.bookingStatus === 'cancelled' ||
+      updateData.paymentStatus === 'cancelled' ||
+      updateData.paymentStatus === 'failed'
+    ) {
+      updateData['reservedSlots.$[].claimKey'] = null
+      updateData.nextDueDate = null
+    }
     const updatedBooking = await Booking.findByIdAndUpdate(bookingId, updateData, {
       new: true,
     })
@@ -196,6 +406,14 @@ export const cancelBookingController = async (req, res) => {
 
     booking.bookingStatus = 'cancelled'
     booking.paymentStatus = 'cancelled'
+    booking.nextDueDate = null // drop out of due lists & reminders
+    // Free any held seats: nulling claimKey releases the 1-on-1 unique index so
+    // the slot can be booked again. (Counts already ignore cancelled bookings.)
+    if (booking.reservedSlots?.length) {
+      booking.reservedSlots.forEach((s: any) => {
+        s.claimKey = null
+      })
+    }
     await booking.save()
 
     return res.status(200).json({ message: 'Booking cancelled', booking })

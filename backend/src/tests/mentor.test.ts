@@ -71,14 +71,65 @@ describe('Mentor flow', () => {
   })
 
   describe('PUT /api/mentor/:id/availability', () => {
-    it('mentor updates their available slots', async () => {
+    it('mentor sets their weekly availability', async () => {
       const mentor = await seedMentor()
       const res = await request(app)
         .put(`/api/mentor/${mentor.id}/availability`)
         .set('Authorization', mentor.token)
-        .send({ available_slot: [{ time: '2026-08-01T10:00:00.000Z' }] })
+        .send({
+          is_available: true,
+          weekly_availability: [
+            { dayOfWeek: 1, startTime: '18:00', endTime: '19:00', capacity: 1 },
+            { dayOfWeek: 6, startTime: '10:00', endTime: '11:00', capacity: 3 },
+          ],
+        })
       expect(res.status).toBe(200)
-      expect(res.body.data.available_slot.length).toBe(1)
+      expect(res.body.data.weekly_availability.length).toBe(2)
+    })
+
+    it('rejects overlapping slots on the same day', async () => {
+      const mentor = await seedMentor()
+      const res = await request(app)
+        .put(`/api/mentor/${mentor.id}/availability`)
+        .set('Authorization', mentor.token)
+        .send({
+          weekly_availability: [
+            { dayOfWeek: 1, startTime: '18:00', endTime: '19:30' },
+            { dayOfWeek: 1, startTime: '19:00', endTime: '20:00' },
+          ],
+        })
+      expect(res.status).toBe(400)
+    })
+
+    it('rejects endTime before startTime', async () => {
+      const mentor = await seedMentor()
+      const res = await request(app)
+        .put(`/api/mentor/${mentor.id}/availability`)
+        .set('Authorization', mentor.token)
+        .send({
+          weekly_availability: [
+            { dayOfWeek: 2, startTime: '19:00', endTime: '18:00' },
+          ],
+        })
+      expect(res.status).toBe(400)
+    })
+  })
+
+  describe('GET /api/mentor/:id/availability (public)', () => {
+    it('returns active slots with remaining seats', async () => {
+      const mentor = await seedMentor()
+      await request(app)
+        .put(`/api/mentor/${mentor.id}/availability`)
+        .set('Authorization', mentor.token)
+        .send({
+          weekly_availability: [
+            { dayOfWeek: 1, startTime: '18:00', endTime: '19:00', capacity: 2 },
+          ],
+        })
+      const res = await request(app).get(`/api/mentor/${mentor.id}/availability`)
+      expect(res.status).toBe(200)
+      expect(res.body.slots.length).toBe(1)
+      expect(res.body.slots[0].recurringRemaining).toBe(2)
     })
   })
 

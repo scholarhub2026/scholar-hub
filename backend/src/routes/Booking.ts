@@ -1,5 +1,6 @@
 import {Router } from 'express'
 import { cancelBookingController, createBookingController, deleteBookingController, generatePaymentLink, getBookingsForAdmin, getMentorEarningsController, updateBookingController } from '../controllers/Booking';
+import { approveBookingController, getDuePaymentsController, recordPaymentController, rejectBookingController } from '../controllers/BookingPayments';
 import crypto from 'crypto';
 import Booking from '../models/Booking';
 import { rewardReferralOnBooking } from '../utils/referral';
@@ -12,6 +13,12 @@ export const BookingRouter = Router();
 
 BookingRouter.post('/', requireAuth, requireRole('STUDENT'), createBookingController);
 BookingRouter.get('/mentor/:mentorId/earnings', requireAuth, requireRole('TUTOR','ADMIN'), getMentorEarningsController);
+// Manual payment collection (admin). NOTE: '/payments/due' MUST stay above the
+// 'GET /:studentId' catch-all or it would be swallowed as a studentId.
+BookingRouter.get('/payments/due', requireAuth, requireRole('ADMIN'), getDuePaymentsController);
+BookingRouter.patch('/:bookingId/approve', requireAuth, requireRole('ADMIN'), approveBookingController);
+BookingRouter.patch('/:bookingId/reject', requireAuth, requireRole('ADMIN'), rejectBookingController);
+BookingRouter.post('/:bookingId/payments', requireAuth, requireRole('ADMIN'), recordPaymentController);
 BookingRouter.get('/:studentId', requireAuth, getBookingsForAdmin); // controller role-filters
 BookingRouter.put('/:bookingId', requireAuth, updateBookingController);
 BookingRouter.patch('/:bookingId/cancel', requireAuth, cancelBookingController); // owner or admin (checked in controller)
@@ -55,10 +62,14 @@ BookingRouter.post('/razorpay/webhook',async(req,res)=>{
         case 'payment.failed':
             // Handle payment failure
             console.log('Payment failed event received');
-            
-            Booking.findByIdAndUpdate(event.payload.payment.entity.notes.bookingId, {
-                paymentStatus: 'failed',
-                transactionId: event.payload.payment.entity.id,
+
+            // Free any held seats (null claimKey) so the slot re-opens.
+            await Booking.findByIdAndUpdate(event.payload.payment.entity.notes.bookingId, {
+                $set: {
+                    paymentStatus: 'failed',
+                    transactionId: event.payload.payment.entity.id,
+                    'reservedSlots.$[].claimKey': null,
+                },
             })
             break;
         default:

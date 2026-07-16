@@ -250,11 +250,11 @@ class _MentorDetailScreenState extends State<MentorDetailScreen> {
                   _subjectsGrid(mentor.subjectNames),
                   SizedBox(height: 22.h),
                 ],
-                if (mentor.availableSlots.isNotEmpty) ...[
-                  _sectionTitle('Availability', LucideIcons.clock),
+                if (mentor.activeSlots.isNotEmpty) ...[
+                  _sectionTitle('Weekly Availability', LucideIcons.clock),
                   SizedBox(height: 12.h),
                   _wrapChips(
-                    mentor.availableSlots.map(Formatters.slotLabel).toList(),
+                    mentor.activeSlots.map((s) => s.label).toList(),
                     AppColors.successSoft,
                     AppColors.success,
                   ),

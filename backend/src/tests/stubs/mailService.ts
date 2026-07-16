@@ -2,7 +2,14 @@
  * Test stub for `utils/mailService`. Records calls (so tests can assert an
  * email "was sent") without touching Brevo/SendGrid/SMTP.
  */
-export type MailType = 'otp' | 'user'
+export type MailType =
+  | 'otp'
+  | 'user'
+  | 'bookingApproved'
+  | 'bookingApprovedMentor'
+  | 'bookingRejected'
+  | 'paymentReminder'
+  | 'paymentDueDigest'
 
 export const sentMails: Array<{ to: string; subject: string; type: MailType }> = []
 

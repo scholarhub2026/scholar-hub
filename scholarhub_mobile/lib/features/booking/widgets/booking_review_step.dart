@@ -18,7 +18,7 @@ class BookingReviewStep extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 24.h),
       children: [
         Text(
-          'Review & pay',
+          'Review & confirm',
           style: Theme.of(context)
               .textTheme
               .titleLarge
@@ -26,7 +26,7 @@ class BookingReviewStep extends StatelessWidget {
         ),
         SizedBox(height: 4.h),
         Text(
-          'Check your booking summary before paying securely.',
+          'Check your summary — your request goes to our team for approval.',
           style: TextStyle(color: AppColors.textSecondary, fontSize: 13.5.sp),
         ),
         SizedBox(height: 20.h),
@@ -50,6 +50,15 @@ class BookingReviewStep extends StatelessWidget {
                 _subjectsRow(),
               ],
               _divider(),
+              _scheduleRow(),
+              _divider(),
+              _row('Payment', '${Formatters.rupeesPlain(draft.totalAmount)} / ${draft.paymentFrequency.perLabel}'),
+              if (draft.scheduleCadence == ScheduleCadence.recurring &&
+                  draft.classStartDate != null) ...[
+                _divider(),
+                _row('Classes start', Formatters.date(draft.classStartDate)),
+              ],
+              _divider(),
               _row('Student', draft.studentName),
               _divider(),
               _row('Email', draft.email),
@@ -71,7 +80,7 @@ class BookingReviewStep extends StatelessWidget {
               SizedBox(width: 12.w),
               Expanded(
                 child: Text(
-                  'Total Payable',
+                  'Fee',
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
@@ -81,7 +90,7 @@ class BookingReviewStep extends StatelessWidget {
               ),
               SizedBox(width: 12.w),
               Text(
-                Formatters.rupeesPlain(draft.totalAmount),
+                '${Formatters.rupeesPlain(draft.totalAmount)}/${draft.paymentFrequency.perLabel}',
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w800,
@@ -99,8 +108,9 @@ class BookingReviewStep extends StatelessWidget {
             SizedBox(width: 8.w),
             Expanded(
               child: Text(
-                'Payments are processed securely via Razorpay. You’ll be '
-                'redirected to complete payment.',
+                'No payment now. ${Formatters.rupeesPlain(draft.totalAmount)} is '
+                'collected every ${draft.paymentFrequency.perLabel} after your '
+                'classes, once our team approves the booking.',
                 style: TextStyle(
                   fontSize: 12.sp,
                   color: AppColors.textMuted,
@@ -148,6 +158,24 @@ class BookingReviewStep extends StatelessWidget {
   Widget _subjectsRow() {
     final subjects = draft.chosenSubjects.map((s) => s.name).join(', ');
     return _row('Subjects', subjects.isEmpty ? '—' : subjects);
+  }
+
+  Widget _scheduleRow() {
+    if (draft.selectedSlots.isEmpty) return _row('Schedule', '—');
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    final lines = draft.selectedSlots.map((s) {
+      final day = (s.dayOfWeek >= 0 && s.dayOfWeek < 7) ? days[s.dayOfWeek] : '';
+      final time = '${s.startTime}–${s.endTime}';
+      if (s.cadence == ScheduleCadence.single && s.date != null) {
+        final d = s.date!;
+        return '$day ${d.day}/${d.month} · $time';
+      }
+      return 'Every $day · $time';
+    }).join('\n');
+    final label = draft.scheduleCadence == ScheduleCadence.single
+        ? 'Session(s)'
+        : 'Weekly slots';
+    return _row(label, lines);
   }
 
   Widget _divider() =>

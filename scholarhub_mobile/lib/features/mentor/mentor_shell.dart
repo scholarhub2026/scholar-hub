@@ -7,6 +7,7 @@ import '../../data/services/notification_router.dart';
 import '../../state/auth/auth_cubit.dart';
 import '../settings/settings_screen.dart';
 import '../shell/widgets/app_bottom_nav.dart';
+import 'availability/mentor_availability_screen.dart';
 import 'dashboard/mentor_dashboard_screen.dart';
 import 'earnings/mentor_earnings_screen.dart';
 import 'mentor_bookings_cubit.dart';
@@ -74,7 +75,24 @@ class _MentorShellState extends State<MentorShell> {
       child: Scaffold(
         backgroundColor: AppColors.background,
         extendBody: true,
-        appBar: AppBar(title: Text(_titles[_index])),
+        appBar: AppBar(
+          title: Text(_titles[_index]),
+          actions: [
+            // Manage the weekly availability template from the Schedule tab.
+            if (_index == 1 && mentorId.isNotEmpty)
+              IconButton(
+                tooltip: 'Weekly availability',
+                icon: const Icon(LucideIcons.calendarClock),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        MentorAvailabilityScreen(mentorId: mentorId),
+                  ),
+                ),
+              ),
+          ],
+        ),
         body: IndexedStack(
           index: _index,
           children: const [

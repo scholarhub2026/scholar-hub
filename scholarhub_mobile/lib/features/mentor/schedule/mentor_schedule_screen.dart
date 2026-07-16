@@ -127,6 +127,17 @@ class _ScheduleCard extends StatelessWidget {
               ),
             ),
           ],
+          if (booking.reservedSlots.isNotEmpty) ...[
+            SizedBox(height: 8.h),
+            Text(
+              booking.reservedSlots.map((s) => s.label).join('  •  '),
+              style: TextStyle(
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w600,
+                color: AppColors.primary,
+              ),
+            ),
+          ],
           SizedBox(height: 12.h),
           Row(
             children: [

@@ -83,7 +83,7 @@ const MentorListing = () => {
       rating={mentor?.rating}
       hourlyRate={mentor?.hourlyRate}
       image={mentor?.profile_pic}
-      availability={mentor?.available_slot}
+      availability={mentor?.weekly_availability}
     />
   ))}
             </div>

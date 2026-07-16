@@ -51,7 +51,7 @@ class BookingConfirmation extends StatelessWidget {
             ),
             SizedBox(height: 28.h),
             Text(
-              'Booking Confirmed!',
+              'Request Sent!',
               textAlign: TextAlign.center,
               style: Theme.of(context)
                   .textTheme
@@ -60,8 +60,8 @@ class BookingConfirmation extends StatelessWidget {
             ).animate().fadeIn(delay: 150.ms).moveY(begin: 12, end: 0),
             SizedBox(height: 10.h),
             const Text(
-              'Your session request has been received. Complete the payment to '
-              'lock in your slot.',
+              'Your booking is awaiting admin approval. We\'ll notify you as '
+              'soon as it\'s confirmed — no payment is needed now.',
               textAlign: TextAlign.center,
               style: TextStyle(color: AppColors.textSecondary, height: 1.5),
             ).animate().fadeIn(delay: 250.ms),
@@ -79,7 +79,14 @@ class BookingConfirmation extends StatelessWidget {
                   SizedBox(height: 12.h),
                   _row('Student', draft.studentName),
                   SizedBox(height: 12.h),
-                  _row('Amount', Formatters.rupeesPlain(draft.totalAmount)),
+                  _row(
+                    'Fee',
+                    '${Formatters.rupeesPlain(draft.totalAmount)}/${draft.paymentFrequency.perLabel}',
+                  ),
+                  if (draft.classStartDate != null) ...[
+                    SizedBox(height: 12.h),
+                    _row('Classes start', Formatters.date(draft.classStartDate)),
+                  ],
                 ],
               ),
             ).animate().fadeIn(delay: 350.ms),

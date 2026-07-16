@@ -4,6 +4,20 @@ import sgMail from "@sendgrid/mail";
 import { userTemplate } from "../templates/userTemplate";
 import { transporter } from "./nodemailler";
 import { otpTemplate } from "../templates/otpTemplates";
+import {
+  bookingApprovedTemplate,
+  bookingApprovedMentorTemplate,
+  bookingRejectedTemplate,
+  type BookingApprovedPayload,
+  type BookingApprovedMentorPayload,
+  type BookingRejectedPayload,
+} from "../templates/bookingStatusTemplates";
+import {
+  paymentReminderTemplate,
+  paymentDueDigestTemplate,
+  type PaymentReminderPayload,
+  type PaymentDueDigestPayload,
+} from "../templates/paymentTemplates";
 
 dotenv.config();
 
@@ -14,8 +28,23 @@ const FROM = process.env.MAIL_FROM || process.env.MAIL_USER || "";
 
 if (SENDGRID_KEY) sgMail.setApiKey(SENDGRID_KEY);
 
-export type MailType = "otp" | "user";
+export type MailType =
+  | "otp"
+  | "user"
+  | "bookingApproved"
+  | "bookingApprovedMentor"
+  | "bookingRejected"
+  | "paymentReminder"
+  | "paymentDueDigest";
 type UserPayload = { email: string; pass: string };
+type MailPayload =
+  | string
+  | UserPayload
+  | BookingApprovedPayload
+  | BookingApprovedMentorPayload
+  | BookingRejectedPayload
+  | PaymentReminderPayload
+  | PaymentDueDigestPayload;
 
 // --- Providers. HTTP-API ones (Brevo, SendGrid) work on hosts that block
 // outbound SMTP ports (Railway, Render, …); plain SMTP is kept for local/other
@@ -68,7 +97,7 @@ export const sendMail = async (
   recipient: string,
   subject: string,
   type: MailType,
-  payload: string | UserPayload
+  payload: MailPayload
 ): Promise<void> => {
   const html = getHtmlContent(type, payload);
 
@@ -101,10 +130,7 @@ export const sendMail = async (
 /**
  * Get HTML template based on email type.
  */
-const getHtmlContent = (
-  type: MailType,
-  payload: string | UserPayload
-): string => {
+const getHtmlContent = (type: MailType, payload: MailPayload): string => {
   switch (type) {
     case "otp":
       if (typeof payload !== "string") {
@@ -117,6 +143,36 @@ const getHtmlContent = (
         throw new Error("Invalid User payload: must include email and pass");
       }
       return userTemplate(payload);
+
+    case "bookingApproved":
+      if (typeof payload !== "object" || !("firstDueDate" in payload)) {
+        throw new Error("Invalid bookingApproved payload");
+      }
+      return bookingApprovedTemplate(payload);
+
+    case "bookingApprovedMentor":
+      if (typeof payload !== "object" || !("detail" in payload)) {
+        throw new Error("Invalid bookingApprovedMentor payload");
+      }
+      return bookingApprovedMentorTemplate(payload);
+
+    case "bookingRejected":
+      if (typeof payload !== "object" || !("mentorName" in payload)) {
+        throw new Error("Invalid bookingRejected payload");
+      }
+      return bookingRejectedTemplate(payload as BookingRejectedPayload);
+
+    case "paymentReminder":
+      if (typeof payload !== "object" || !("dueDate" in payload)) {
+        throw new Error("Invalid paymentReminder payload");
+      }
+      return paymentReminderTemplate(payload as PaymentReminderPayload);
+
+    case "paymentDueDigest":
+      if (typeof payload !== "object" || !("items" in payload)) {
+        throw new Error("Invalid paymentDueDigest payload");
+      }
+      return paymentDueDigestTemplate(payload);
 
     default:
       throw new Error("Unsupported mail type");

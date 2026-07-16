@@ -169,29 +169,44 @@ class _BookingCard extends StatelessWidget {
                 ),
               ),
               Text(
-                Formatters.rupeesPlain(booking.totalAmount),
+                booking.frequencyPerLabel.isEmpty
+                    ? Formatters.rupeesPlain(booking.totalAmount)
+                    : '${Formatters.rupeesPlain(booking.totalAmount)}/${booking.frequencyPerLabel}',
                 style: TextStyle(
                   fontWeight: FontWeight.w800,
-                  fontSize: 16.sp,
+                  fontSize: 15.sp,
                   color: AppColors.primary,
                 ),
               ),
             ],
           ),
           SizedBox(height: 14.h),
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
               _StatusChip(
-                label: 'Booking: ${_label(booking.bookingStatus)}',
+                label: booking.bookingStatus == 'pending'
+                    ? 'Awaiting approval'
+                    : _label(booking.bookingStatus),
                 color: _statusColor(booking.bookingStatus),
               ),
-              SizedBox(width: 8.w),
-              _StatusChip(
-                label: 'Payment: ${_label(booking.paymentStatus)}',
-                color: _paymentColor(booking.paymentStatus),
-              ),
+              if (booking.bookingStatus == 'confirmed' &&
+                  booking.nextDueDate != null)
+                _StatusChip(
+                  label: 'Next due ${Formatters.date(booking.nextDueDate)}',
+                  color: AppColors.warning,
+                ),
             ],
           ),
+          if (booking.bookingStatus == 'cancelled' &&
+              booking.rejectionReason.isNotEmpty) ...[
+            SizedBox(height: 10.h),
+            Text(
+              'Reason: ${booking.rejectionReason}',
+              style: TextStyle(fontSize: 12.5.sp, color: AppColors.danger),
+            ),
+          ],
           if (booking.selectedSubjects.isNotEmpty) ...[
             SizedBox(height: 12.h),
             Text(
@@ -201,6 +216,30 @@ class _BookingCard extends StatelessWidget {
                 color: AppColors.textSecondary,
               ),
             ),
+          ],
+          if (booking.reservedSlots.isNotEmpty) ...[
+            SizedBox(height: 10.h),
+            for (final slot in booking.reservedSlots)
+              Padding(
+                padding: EdgeInsets.only(top: 4.h),
+                child: Row(
+                  children: [
+                    Icon(LucideIcons.clock,
+                        size: 13.sp, color: AppColors.primary),
+                    SizedBox(width: 6.w),
+                    Expanded(
+                      child: Text(
+                        slot.label,
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ],
       ),
@@ -217,17 +256,6 @@ class _BookingCard extends StatelessWidget {
       case 'completed':
         return AppColors.success;
       case 'cancelled':
-        return AppColors.danger;
-      default:
-        return AppColors.warning;
-    }
-  }
-
-  Color _paymentColor(String s) {
-    switch (s) {
-      case 'completed':
-        return AppColors.success;
-      case 'failed':
         return AppColors.danger;
       default:
         return AppColors.warning;

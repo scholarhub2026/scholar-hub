@@ -11,6 +11,57 @@ import { Request, Response } from 'express'
 import { paginate } from '../utils/pagination'
 import { sendMail } from '../utils/mailService'
 import { sendPushToUser } from '../utils/pushService'
+import { getSlotUsage, TIME_RE, dateKey } from '../utils/availability'
+
+interface WeeklySlotInput {
+  _id?: string
+  dayOfWeek: number
+  startTime: string
+  endTime: string
+  capacity?: number
+  isActive?: boolean
+}
+
+/**
+ * Validate a weekly_availability payload. Returns an error string or null.
+ * Rejects malformed entries and overlapping *active* slots on the same day.
+ */
+function validateWeeklyAvailability(slots: unknown): string | null {
+  if (!Array.isArray(slots)) return 'weekly_availability must be an array'
+  for (const s of slots as WeeklySlotInput[]) {
+    if (
+      typeof s.dayOfWeek !== 'number' ||
+      !Number.isInteger(s.dayOfWeek) ||
+      s.dayOfWeek < 0 ||
+      s.dayOfWeek > 6
+    ) {
+      return 'dayOfWeek must be an integer 0–6'
+    }
+    if (!TIME_RE.test(s.startTime || '') || !TIME_RE.test(s.endTime || '')) {
+      return 'startTime and endTime must be "HH:mm" (24h)'
+    }
+    if (s.endTime <= s.startTime) return 'endTime must be after startTime'
+    if (
+      s.capacity != null &&
+      (!Number.isInteger(s.capacity) || s.capacity < 1)
+    ) {
+      return 'capacity must be an integer ≥ 1'
+    }
+  }
+  const active = (slots as WeeklySlotInput[]).filter(s => s.isActive !== false)
+  for (let i = 0; i < active.length; i++) {
+    for (let j = i + 1; j < active.length; j++) {
+      const a = active[i]
+      const b = active[j]
+      if (a.dayOfWeek !== b.dayOfWeek) continue
+      // Half-open overlap: [aStart,aEnd) intersects [bStart,bEnd).
+      if (a.startTime < b.endTime && b.startTime < a.endTime) {
+        return `Overlapping availability on the same day (${a.startTime}-${a.endTime} vs ${b.startTime}-${b.endTime})`
+      }
+    }
+  }
+  return null
+}
 
 export const createMentor = catchAsync(async (req: Request, res: Response) => {
   const requiredFields = ['email', 'name', 'phone', 'place', 'message']
@@ -147,7 +198,7 @@ export const deleteMentor = catchAsync(async (req: Request, res: Response) => {
 })
 
 /**
- * PUT /api/mentor/:id/availability  body: { available_slot?, is_available? }
+ * PUT /api/mentor/:id/availability  body: { weekly_availability?, is_available? }
  * Mentor/Admin — update ONLY availability. Dedicated (not `updateMentor`) so a
  * partial payload can't wipe selected_class / additional_details.
  */
@@ -159,8 +210,10 @@ export const updateMentorAvailability = catchAsync(
     }
 
     const update: Record<string, any> = {}
-    if (Array.isArray(req.body.available_slot)) {
-      update.available_slot = req.body.available_slot
+    if (req.body.weekly_availability !== undefined) {
+      const err = validateWeeklyAvailability(req.body.weekly_availability)
+      if (err) return res.status(400).json({ message: err })
+      update.weekly_availability = req.body.weekly_availability
     }
     if (typeof req.body.is_available === 'boolean') {
       update.is_available = req.body.is_available
@@ -168,14 +221,14 @@ export const updateMentorAvailability = catchAsync(
     if (Object.keys(update).length === 0) {
       return res
         .status(400)
-        .json({ message: 'Provide available_slot and/or is_available' })
+        .json({ message: 'Provide weekly_availability and/or is_available' })
     }
 
     const updated = await AuthModal.findOneAndUpdate(
       { _id: id, role: 'TUTOR' },
       { $set: update },
       { new: true }
-    ).select('available_slot is_available')
+    ).select('weekly_availability is_available')
 
     if (!updated) {
       return res.status(404).json({ message: 'Mentor not found' })
@@ -184,6 +237,62 @@ export const updateMentorAvailability = catchAsync(
     return res
       .status(200)
       .json({ message: 'Availability updated successfully', data: updated })
+  }
+)
+
+/**
+ * GET /api/mentor/:id/availability  (public)
+ * Returns the mentor's active weekly slots, each annotated with:
+ *  - recurringRemaining: seats left for a recurring hold (capacity − recurring holds)
+ *  - dateHolds: { "YYYY-MM-DD": singleCount } for future single-session holds,
+ *    so the client can compute remainingOnDate = recurringRemaining − dateHolds[D].
+ */
+export const getMentorAvailabilityController = catchAsync(
+  async (req: Request, res: Response) => {
+    const { id } = req.params
+    if (!mongooseIdValidator(id)) {
+      return res.status(400).json({ message: 'Invalid Id' })
+    }
+
+    const mentor = await AuthModal.findOne({ _id: id, role: 'TUTOR' }).select(
+      'weekly_availability is_available'
+    )
+    if (!mentor) {
+      return res.status(404).json({ message: 'Mentor not found' })
+    }
+
+    const usage = await getSlotUsage(id)
+    const todayKey = dateKey(new Date())
+
+    const slots = (mentor.weekly_availability || [])
+      .filter((s: any) => s.isActive !== false)
+      .map((s: any) => {
+        const slotId = s._id.toString()
+        const u = usage.get(slotId)
+        const capacity = s.capacity ?? 1
+        const recurringRemaining = Math.max(0, capacity - (u?.recurring || 0))
+        const dateHolds: Record<string, number> = {}
+        if (u) {
+          for (const [k, v] of u.single) {
+            if (k >= todayKey) dateHolds[k] = v
+          }
+        }
+        return {
+          _id: slotId,
+          dayOfWeek: s.dayOfWeek,
+          startTime: s.startTime,
+          endTime: s.endTime,
+          capacity,
+          isActive: true,
+          recurringRemaining,
+          dateHolds,
+        }
+      })
+
+    return res.status(200).json({
+      is_available: mentor.is_available !== false,
+      slots,
+    })
   }
 )
 
@@ -258,7 +367,7 @@ export const updateMentor = catchAsync(async (req: Request, res: Response) => {
         ...req.body,
         ...payload,
         additional_details: req.body.additional_details,
-        available_slot: req.body.available_slot,
+        weekly_availability: req.body.weekly_availability,
         selected_class: req.body.selected_class,
       },
     },

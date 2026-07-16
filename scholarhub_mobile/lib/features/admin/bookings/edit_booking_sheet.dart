@@ -9,6 +9,7 @@ import '../../../widgets/primary_button.dart';
 
 const _paymentStatuses = ['pending', 'completed', 'failed'];
 const _bookingStatuses = ['pending', 'confirmed', 'completed', 'cancelled'];
+const _frequencies = ['daily', 'weekly', 'monthly'];
 
 /// Edit a booking's payment/booking status, amount and remarks. Returns the
 /// update payload (or null if dismissed).
@@ -40,6 +41,7 @@ class _EditBookingSheet extends StatefulWidget {
 class _EditBookingSheetState extends State<_EditBookingSheet> {
   late String _paymentStatus;
   late String _bookingStatus;
+  late String _frequency;
   late final TextEditingController _amount;
   late final TextEditingController _remarks;
 
@@ -52,6 +54,9 @@ class _EditBookingSheetState extends State<_EditBookingSheet> {
     _bookingStatus = _bookingStatuses.contains(widget.booking.bookingStatus)
         ? widget.booking.bookingStatus
         : 'pending';
+    _frequency = _frequencies.contains(widget.booking.paymentFrequency)
+        ? widget.booking.paymentFrequency
+        : 'monthly';
     _amount = TextEditingController(
         text: widget.booking.totalAmount.toStringAsFixed(0));
     _remarks = TextEditingController(text: widget.booking.remarks);
@@ -68,6 +73,7 @@ class _EditBookingSheetState extends State<_EditBookingSheet> {
     Navigator.pop(context, {
       'paymentStatus': _paymentStatus,
       'bookingStatus': _bookingStatus,
+      'paymentFrequency': _frequency,
       'totalAmount': num.tryParse(_amount.text.trim()) ?? 0,
       'remarks': _remarks.text.trim(),
     });
@@ -123,8 +129,15 @@ class _EditBookingSheetState extends State<_EditBookingSheet> {
               onChanged: (v) => setState(() => _bookingStatus = v),
             ),
             SizedBox(height: 16.h),
+            _DropdownField(
+              label: 'Payment frequency',
+              value: _frequency,
+              options: _frequencies,
+              onChanged: (v) => setState(() => _frequency = v),
+            ),
+            SizedBox(height: 16.h),
             AppTextField(
-              label: 'Total amount (₹)',
+              label: 'Fee per period (₹)',
               controller: _amount,
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],

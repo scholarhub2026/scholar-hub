@@ -32,6 +32,26 @@ const SelectedClassSchema = new mongoose.Schema(
   { _id: false }
 );
 
+// A single recurring weekly availability window for a mentor, e.g.
+// { dayOfWeek: 1, startTime: '18:00', endTime: '19:00', capacity: 1 }.
+// Keeps its own `_id` — that id becomes the stable slotId a booking reserves.
+const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
+const AvailabilitySlotSchema = new mongoose.Schema({
+  dayOfWeek: { type: Number, min: 0, max: 6, required: true }, // 0=Sun … 6=Sat (JS getDay())
+  startTime: { type: String, required: true, match: TIME_RE }, // "HH:mm" 24h
+  endTime: { type: String, required: true, match: TIME_RE },
+  capacity: { type: Number, min: 1, default: 1 }, // 1 = 1-on-1, >1 = group
+  isActive: { type: Boolean, default: true },
+});
+// Zero-padded "HH:mm" compares correctly as strings.
+AvailabilitySlotSchema.pre('validate', function (next) {
+  const slot = this as unknown as { startTime?: string; endTime?: string };
+  if (slot.startTime && slot.endTime && slot.endTime <= slot.startTime) {
+    return next(new Error('endTime must be after startTime'));
+  }
+  next();
+});
+
 
 const AuthSchema = new Schema<IAuth>(
   {
@@ -83,11 +103,9 @@ const AuthSchema = new Schema<IAuth>(
     education_qualification: {
       type: String,
     },
-    available_slot: [
-      {
-        time: String,
-      },
-    ],
+    // Structured weekly availability template. Replaces the old decorative
+    // `available_slot: [{ time }]`. See AvailabilitySlotSchema above.
+    weekly_availability: [AvailabilitySlotSchema],
     rating: {
       type: String,
     },

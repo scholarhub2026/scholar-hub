@@ -38,6 +38,7 @@ const ClassPage = lazy(() => import("./pages/Subject"));
 const SubjectPage = lazy(() => import("./pages/SubjectPage"));
 const BookingTable = lazy(() => import("./components/BookingPage/BookingTable"));
 const AdminAdsPage = lazy(() => import("./features/admin/ads/AdminAdsPage"));
+const AdminPaymentsPage = lazy(() => import("./features/admin/payments/AdminPaymentsPage"));
 const AdminUsersPage = lazy(() => import("./features/admin/users/AdminUsersPage"));
 const AdminReviewsPage = lazy(() => import("./features/admin/reviews/AdminReviewsPage"));
 const AdminReferralsPage = lazy(() => import("./features/admin/referrals/AdminReferralsPage"));
@@ -92,6 +93,7 @@ const renderRoutes = () => (
         <Route path="/admin/classes" element={<ClassPage />} />
         <Route path="/admin/subjects" element={<SubjectPage />} />
         <Route path="/admin/bookings" element={<BookingTable />} />
+        <Route path="/admin/payments" element={<AdminPaymentsPage />} />
         <Route path="/admin/ads" element={<AdminAdsPage />} />
         <Route path="/admin/reviews" element={<AdminReviewsPage />} />
         <Route path="/admin/referrals" element={<AdminReferralsPage />} />
