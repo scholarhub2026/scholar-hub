@@ -4,6 +4,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { usePortalBase } from "@/hooks/usePortalBase";
+import { Clock } from "lucide-react";
 
 type WeeklySlot = {
   _id?: string;
@@ -79,20 +80,21 @@ const MentorCard: React.FC<MentorProps> = ({
             </Badge>
           )}
         </div>
-        <div className="flex justify-between items-center">
-          <div className="text-sm text-muted-foreground">
-            {availability
-              ?.filter((el) => el.isActive !== false)
-              .slice(0, 3)
-              .map((el, i) => (
-                <div key={el._id ?? i}>
-                  {DAY_SHORT[el.dayOfWeek]} {el.startTime}–{el.endTime}
-                </div>
-              ))}
-          </div>
-
-          {/* <div className="font-medium">${hourlyRate}/hour</div> */}
-        </div>
+        {(() => {
+          const active = (availability ?? []).filter(
+            (el) => el.isActive !== false,
+          );
+          if (active.length === 0) return null;
+          const days = [1, 2, 3, 4, 5, 6, 0]
+            .filter((d) => active.some((el) => el.dayOfWeek === d))
+            .map((d) => DAY_SHORT[d]);
+          return (
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Clock className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">Available {days.join(", ")}</span>
+            </div>
+          );
+        })()}
       </CardContent>
       <CardFooter className="p-4 pt-0">
         <Link to={`/mentors/${id}`} className="w-full">

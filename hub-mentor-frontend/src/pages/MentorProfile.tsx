@@ -17,6 +17,27 @@ import {
 import { useGetMentorQuery } from "@/api/mentor/get-mentor";
 import { TutorData } from "@/types/mentors";
 import { Label } from "@/components/ui/label";
+import { Clock } from "lucide-react";
+
+const DAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+type AvailabilitySlot = {
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  isActive?: boolean;
+};
+
+/** Active slots grouped by weekday (Mon-first), each sorted by start time. */
+const groupByDay = (slots: AvailabilitySlot[] = []) =>
+  [1, 2, 3, 4, 5, 6, 0]
+    .map((day) => ({
+      day: DAY_SHORT[day],
+      slots: slots
+        .filter((s) => s.isActive !== false && s.dayOfWeek === day)
+        .sort((a, b) => a.startTime.localeCompare(b.startTime)),
+    }))
+    .filter((g) => g.slots.length > 0);
 
 const MentorProfile = () => {
   const { id } = useParams<{ id: string }>();
@@ -158,34 +179,37 @@ const MentorProfile = () => {
                   ))} */}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-8 text-sm">
-                  <div className="flex items-center">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="h-5 w-5 mr-2 text-muted-foreground"
-                    >
-                      <circle cx="12" cy="12" r="10" />
-                      <polyline points="12 6 12 12 16 14" />
-                    </svg>
-                    {(mentor.weekly_availability ?? [])
-                      .filter((slot) => slot.isActive !== false)
-                      .map((slot, index) => (
-                        <Badge key={index} variant="outline">
-                          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][
-                            slot.dayOfWeek
-                          ]}{" "}
-                          {slot.startTime}–{slot.endTime}
-                        </Badge>
+                {groupByDay(mentor.weekly_availability).length > 0 && (
+                  <div className="mt-4">
+                    <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      Weekly availability
+                    </div>
+                    <div className="space-y-2">
+                      {groupByDay(mentor.weekly_availability).map((g) => (
+                        <div
+                          key={g.day}
+                          className="flex flex-wrap items-center gap-2"
+                        >
+                          <span className="w-9 shrink-0 text-sm font-semibold text-slate-500">
+                            {g.day}
+                          </span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {g.slots.map((s, i) => (
+                              <Badge
+                                key={i}
+                                variant="outline"
+                                className="font-normal"
+                              >
+                                {s.startTime}–{s.endTime}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
                       ))}
-                    {/* <span>{mentor.}</span> */}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
 
