@@ -59,7 +59,7 @@ export const NAVIGATION: Record<RoleSlug, NavItem[]> = {
   ],
   student: [
     { name: "Dashboard", href: "/app", icon: LayoutDashboard },
-    { name: "Find Mentors", href: "/mentors", icon: Search },
+    { name: "Find Mentors", href: "/app/mentors", icon: Search },
     { name: "My Bookings", href: "/app/bookings", icon: BarChart3 },
     { name: "Rate Mentors", href: "/app/reviews", icon: Star },
     { name: "Refer & Earn", href: "/app/refer", icon: Gift },

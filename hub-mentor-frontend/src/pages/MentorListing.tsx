@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import MainLayout from "@/components/MainLayout";
+import PortalPage from "@/components/layout/PortalPage";
 import MentorCard from "@/components/mentors/MentorCard";
 import ResponsiveFilterSection from "@/components/mentors/ResponsiveFilterSection";
 import { useGetMentorQuery } from "@/api/mentor/get-mentor";
@@ -24,7 +24,7 @@ const MentorListing = () => {
   });
 
   return (
-    <MainLayout>
+    <PortalPage>
       <div className="container-wide py-8 md:py-12">
         <div className="mb-8">
           <h1 className="text-3xl md:text-4xl font-bold mb-4">
@@ -97,7 +97,7 @@ const MentorListing = () => {
           )}
         </div>
       </div>
-    </MainLayout>
+    </PortalPage>
   );
 };
 

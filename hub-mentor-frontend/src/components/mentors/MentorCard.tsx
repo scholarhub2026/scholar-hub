@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { usePortalBase } from "@/hooks/usePortalBase";
 
 type WeeklySlot = {
   _id?: string;
@@ -35,8 +36,8 @@ const MentorCard: React.FC<MentorProps> = ({
   image,
   availability,
 }) => {
+  const base = usePortalBase();
 
-  
   const sub = subjects?.map((subject) => subject.class_id.class);
  
 
@@ -44,7 +45,7 @@ const MentorCard: React.FC<MentorProps> = ({
 
   return (
     <Card className="overflow-hidden transition-all hover:shadow-md">
-      <Link to={`/mentors/${id}`}>
+      <Link to={`${base}/mentors/${id}`}>
         <div className="relative h-48 overflow-hidden">
           <img
             src={image || "/og-image.png"}

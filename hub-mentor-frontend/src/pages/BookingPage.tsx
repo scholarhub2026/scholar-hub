@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import MainLayout from "@/components/MainLayout";
+import PortalPage from "@/components/layout/PortalPage";
+import { usePortalBase } from "@/hooks/usePortalBase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useGetMentorQuery } from "@/api/mentor/get-mentor";
@@ -33,6 +34,7 @@ const FREQUENCY_LABEL: Record<string, string> = {
 const BookingPage = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const base = usePortalBase();
   const [mentor, setMentor] = useState(null);
   const { data, isSuccess } = useGetMentorQuery({
     id: id as string,
@@ -75,17 +77,17 @@ const BookingPage = () => {
 
   if (!mentor) {
     return (
-      <MainLayout>
+      <PortalPage>
         <div className="container-wide py-16 text-center">
           <h2 className="text-2xl font-bold mb-4">Mentor not found</h2>
           <p className="text-muted-foreground mb-6">
             The mentor you're looking for doesn't exist or has been removed.
           </p>
-          <Link to="/mentors">
+          <Link to={`${base}/mentors`}>
             <Button>Back to Mentors</Button>
           </Link>
         </div>
-      </MainLayout>
+      </PortalPage>
     );
   }
 
@@ -175,7 +177,7 @@ const BookingPage = () => {
   };
 
   return (
-    <MainLayout>
+    <PortalPage>
       <div className="container-wide py-8 md:py-12">
         {/* Progress Steps */}
         <div className="mx-auto mb-10 max-w-2xl">
@@ -403,7 +405,7 @@ const BookingPage = () => {
           )}
         </div>
       </div>
-    </MainLayout>
+    </PortalPage>
   );
 };
 

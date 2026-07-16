@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import MainLayout from "@/components/MainLayout";
+import PortalPage from "@/components/layout/PortalPage";
+import { usePortalBase } from "@/hooks/usePortalBase";
 import { mentors } from "@/data/mentors";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,6 +20,7 @@ import { Label } from "@/components/ui/label";
 
 const MentorProfile = () => {
   const { id } = useParams<{ id: string }>();
+  const base = usePortalBase();
   const [mentor, setMentor] = useState<TutorData | undefined>(undefined);
 
 
@@ -43,24 +45,24 @@ const MentorProfile = () => {
 
   if (!mentor) {
     return (
-      <MainLayout>
+      <PortalPage>
         <div className="container-wide py-16 text-center">
           <h2 className="text-2xl font-bold mb-4">Mentor not found</h2>
           <p className="text-muted-foreground mb-6">
             The mentor you're looking for doesn't exist or has been removed.
           </p>
-          <Link to="/mentors">
+          <Link to={`${base}/mentors`}>
             <Button>Back to Mentors</Button>
           </Link>
         </div>
-      </MainLayout>
+      </PortalPage>
     );
   }
 
   const strippedDetails = stripBullets(mentor.additional_details);
 
   return (
-    <MainLayout>
+    <PortalPage>
       <div className="container-wide py-8 md:py-12">
         <div className="flex flex-col md:flex-row gap-8">
           {/* Mentor Info Column */}
@@ -277,7 +279,7 @@ const MentorProfile = () => {
                
               </CardHeader>
               <CardContent>
-               <Link to={`${isAvailable?`/booking/${mentor._id}`:""}`} className="w-full">
+               <Link to={`${isAvailable?`${base}/booking/${mentor._id}`:""}`} className="w-full">
                       <button  disabled={!isAvailable} className="w-full bg-blue-600 disabled:bg-blue-400 p-3 text-white rounded-lg">Book Now</button>
                     </Link>
                     <Label hidden={isAvailable} className="text-red-600">Time Slot Full</Label>
@@ -288,7 +290,7 @@ const MentorProfile = () => {
           </div>
         </div>
       </div>
-    </MainLayout>
+    </PortalPage>
   );
 };
 

@@ -40,7 +40,7 @@ const StudentDashboard = () => {
             Welcome{user?.firstName ? `, ${user.firstName}` : ""}!
           </h1>
           <Button asChild>
-            <Link to="/mentors">
+            <Link to="/app/mentors">
               <Search className="mr-2 h-4 w-4" /> Find a Mentor
             </Link>
           </Button>
@@ -175,7 +175,7 @@ const StudentDashboard = () => {
                       {m.location && <Badge variant="outline">{m.location}</Badge>}
                     </div>
                     <Button className="w-full mt-3" size="sm" asChild>
-                      <Link to={`/mentors/${m._id}`}>View profile</Link>
+                      <Link to={`/app/mentors/${m._id}`}>View profile</Link>
                     </Button>
                   </CardContent>
                 </Card>

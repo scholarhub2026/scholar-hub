@@ -129,6 +129,10 @@ const renderRoutes = () => (
         }
       >
         <Route path="/app" element={<StudentDashboard />} />
+        {/* Browse & book inside the student shell (not the public marketing pages) */}
+        <Route path="/app/mentors" element={<MentorListing />} />
+        <Route path="/app/mentors/:id" element={<MentorProfile />} />
+        <Route path="/app/booking/:id" element={<BookingPage />} />
         <Route path="/app/bookings" element={<BookingTable />} />
         <Route path="/app/reviews" element={<StudentReviewsPage />} />
         <Route path="/app/refer" element={<ReferPage />} />
