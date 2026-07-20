@@ -5,7 +5,7 @@ import StatusBadge from "@/components/shared/StatusBadge";
 import DataTable from "@/components/reusable/DataTable";
 import Swal from "sweetalert2";
 
-import { BadgeCheck, Eye, KeyRound, Trash2 } from "lucide-react";
+import { BadgeCheck, BadgeIndianRupee, Eye, KeyRound, Trash2 } from "lucide-react";
 import React, { useState } from "react";
 import { useUpdateMentorMutation } from "@/api/mentor/update-mentor";
 import { useDeleteMentorMutation } from "@/api/mentor/delete-mentor";
@@ -80,6 +80,25 @@ const MentorDetails = () => {
     }).then((result) => {
       if (result.isConfirmed) {
         deleteMentor(item._id);
+      }
+    });
+  };
+
+  /** Toggle whether this tutor's own fees are used for billing (SRD override). */
+  const handleToggleCustomFees = (item) => {
+    const next = !item.custom_fee_enabled;
+    Swal.fire({
+      title: next ? "Use this mentor's own fees?" : "Use platform default fees?",
+      text: next
+        ? `Billing for ${item?.firstName || "this mentor"} will use their own class/subject fees.`
+        : `Billing for ${item?.firstName || "this mentor"} will use the global catalog fees.`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#2563EB",
+      confirmButtonText: "Yes, update",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        mutate({ id: item._id, data: { custom_fee_enabled: next } });
       }
     });
   };
@@ -226,6 +245,20 @@ const MentorDetails = () => {
             >
               <KeyRound className="mr-1.5 h-4 w-4" />
               Resend
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className={
+                item.custom_fee_enabled
+                  ? "text-emerald-600 hover:bg-emerald-50"
+                  : "text-slate-500 hover:text-primary"
+              }
+              onClick={() => handleToggleCustomFees(item)}
+              title="ON: this tutor's own fees are billed. OFF: platform default fees apply."
+            >
+              <BadgeIndianRupee className="mr-1.5 h-4 w-4" />
+              {item.custom_fee_enabled ? "Custom fees: on" : "Custom fees: off"}
             </Button>
             <Button
               variant="ghost"

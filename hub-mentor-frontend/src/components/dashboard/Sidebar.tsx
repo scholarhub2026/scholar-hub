@@ -21,6 +21,9 @@ import {
   Wallet,
   Clock,
   UserRound,
+  ClipboardCheck,
+  Banknote,
+  Inbox,
   type LucideIcon,
 } from "lucide-react";
 
@@ -40,7 +43,9 @@ export const NAVIGATION: Record<RoleSlug, NavItem[]> = {
     { name: "Classes", href: "/admin/classes", icon: CalendarDays },
     { name: "Subjects", href: "/admin/subjects", icon: BookOpen },
     { name: "Bookings", href: "/admin/bookings", icon: BarChart3 },
+    { name: "Sessions", href: "/admin/sessions", icon: ClipboardCheck },
     { name: "Payments", href: "/admin/payments", icon: Wallet },
+    { name: "Settlements", href: "/admin/settlements", icon: Banknote },
     { name: "Ads", href: "/admin/ads", icon: Megaphone },
     { name: "Reviews", href: "/admin/reviews", icon: Star },
     { name: "Referrals", href: "/admin/referrals", icon: Gift },
@@ -50,8 +55,10 @@ export const NAVIGATION: Record<RoleSlug, NavItem[]> = {
   mentor: [
     { name: "Dashboard", href: "/mentor", icon: LayoutDashboard },
     { name: "My Profile", href: "/mentor/profile", icon: UserRound },
+    { name: "Requests", href: "/mentor/requests", icon: Inbox },
     { name: "Subjects & Pricing", href: "/mentor/subjects", icon: BookOpen },
     { name: "Schedule", href: "/mentor/schedule", icon: CalendarClock },
+    { name: "Sessions", href: "/mentor/sessions", icon: ClipboardCheck },
     { name: "Earnings", href: "/mentor/earnings", icon: Wallet },
     { name: "Availability", href: "/mentor/availability", icon: Clock },
     { name: "Reviews", href: "/mentor/reviews", icon: Star },

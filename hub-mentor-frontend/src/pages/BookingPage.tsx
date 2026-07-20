@@ -9,6 +9,7 @@ import Booking from "@/components/BookingPage/booking";
 import Schedule from "@/components/BookingPage/schedule";
 import Details from "@/components/BookingPage/details";
 import { useCreateBookingMutation } from "@/api/booking/create-booking";
+import { useBookingQuoteQuery } from "@/api/booking/quote-api";
 import { useAuth } from "@/auth/AuthProvider";
 import { roleHome, roleSlug } from "@/config/roles";
 import { cn } from "@/lib/utils";
@@ -25,11 +26,59 @@ const steps = [
   { id: "confirmation", name: "Confirmation" },
 ];
 
-const FREQUENCY_LABEL: Record<string, string> = {
-  daily: "day",
-  weekly: "week",
-  monthly: "month",
+/** How the fee is billed, for the review/confirmation summaries. */
+const BILLING_LABEL: Record<string, string> = {
+  "per-session": "Billed per session",
+  weekly: "Billed weekly",
+  monthly: "Billed monthly",
+  daily: "Billed monthly",
 };
+
+type QuoteShape = {
+  rateCard: {
+    perClassFee: number | null;
+    subjectRates: Array<{ subjectId: string | null; name: string; hourlyRate: number }>;
+  };
+} | undefined;
+
+/** Rate-card fee summary — no payable total (invoices come after classes). */
+const FeeSummary = ({
+  quote,
+  frequency,
+}: {
+  quote: QuoteShape;
+  frequency: string;
+}) => (
+  <div className="rounded-xl border border-slate-200 bg-slate-50 px-5 py-4">
+    {quote?.rateCard.perClassFee != null ? (
+      <div className="flex items-center justify-between">
+        <span className="text-sm text-slate-600">Fee per class</span>
+        <span className="font-display text-lg font-bold text-slate-900">
+          ₹{quote.rateCard.perClassFee}
+        </span>
+      </div>
+    ) : quote ? (
+      <div className="space-y-1.5">
+        {quote.rateCard.subjectRates.map((r) => (
+          <div
+            key={r.subjectId ?? r.name}
+            className="flex items-center justify-between"
+          >
+            <span className="text-sm capitalize text-slate-600">
+              {r.name || "Subject"}
+            </span>
+            <span className="font-semibold text-slate-900">₹{r.hourlyRate}/hr</span>
+          </div>
+        ))}
+      </div>
+    ) : (
+      <span className="text-sm text-slate-400">Fee to be confirmed</span>
+    )}
+    <div className="mt-2 text-xs font-medium text-slate-500">
+      {BILLING_LABEL[frequency] ?? "Billed monthly"}
+    </div>
+  </div>
+);
 
 const BookingPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -73,6 +122,14 @@ const BookingPage = () => {
 
     totalAmount: 0,
     bookingDate: null,
+  });
+
+  // Server-computed rate card, shown in the review/confirmation summaries.
+  const { data: quote } = useBookingQuoteQuery({
+    mentorId: (mentor as { _id?: string } | null)?._id,
+    classId: formData.selectedClass?.class_id?._id,
+    bookingType: formData.bookingType,
+    selectedSubjects: formData.selectedSubjects,
   });
 
   if (!mentor) {
@@ -307,17 +364,13 @@ const BookingPage = () => {
                       </div>
                     )}
                   </div>
-                  <div className="mt-5 flex items-center justify-between rounded-xl bg-brand-gradient px-5 py-4 text-white">
-                    <span className="font-medium">Fee</span>
-                    <span className="font-display text-xl font-bold">
-                      {formData.totalAmount > 0
-                        ? `₹${formData.totalAmount} / ${FREQUENCY_LABEL[formData.paymentFrequency] ?? "month"}`
-                        : "Free"}
-                    </span>
+                  <div className="mt-5">
+                    <FeeSummary quote={quote} frequency={formData.paymentFrequency} />
                   </div>
                   <p className="mt-3 text-center text-sm text-slate-500">
-                    No payment now — fees are collected {formData.paymentFrequency}{" "}
-                    after classes begin, once our team approves your booking.
+                    No payment now — invoices are raised after your classes,
+                    based on completed sessions, once our team approves your
+                    booking.
                   </p>
                 </div>
               </div>
@@ -355,14 +408,10 @@ const BookingPage = () => {
                       {formData.studentName}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-slate-500">Fee</span>
-                    <span className="font-medium text-slate-800">
-                      {formData.totalAmount > 0
-                        ? `₹${formData.totalAmount} / ${FREQUENCY_LABEL[formData.paymentFrequency] ?? "month"}`
-                        : "Free"}
-                    </span>
-                  </div>
+                </div>
+
+                <div className="mt-3">
+                  <FeeSummary quote={quote} frequency={formData.paymentFrequency} />
                 </div>
 
                 <p className="mt-5 text-xs text-slate-400">

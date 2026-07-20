@@ -39,6 +39,8 @@ const SubjectPage = lazy(() => import("./pages/SubjectPage"));
 const BookingTable = lazy(() => import("./components/BookingPage/BookingTable"));
 const AdminAdsPage = lazy(() => import("./features/admin/ads/AdminAdsPage"));
 const AdminPaymentsPage = lazy(() => import("./features/admin/payments/AdminPaymentsPage"));
+const AdminSessionsPage = lazy(() => import("./features/admin/sessions/AdminSessionsPage"));
+const AdminSettlementsPage = lazy(() => import("./features/admin/settlements/AdminSettlementsPage"));
 const AdminUsersPage = lazy(() => import("./features/admin/users/AdminUsersPage"));
 const AdminReviewsPage = lazy(() => import("./features/admin/reviews/AdminReviewsPage"));
 const AdminReferralsPage = lazy(() => import("./features/admin/referrals/AdminReferralsPage"));
@@ -46,6 +48,8 @@ const AdminReferralsPage = lazy(() => import("./features/admin/referrals/AdminRe
 // Mentor
 const MentorDashboard = lazy(() => import("./features/mentor/dashboard/MentorDashboard"));
 const MentorEarningsPage = lazy(() => import("./features/mentor/earnings/MentorEarningsPage"));
+const MentorRequestsPage = lazy(() => import("./features/mentor/requests/MentorRequestsPage"));
+const MentorSessionsPage = lazy(() => import("./features/mentor/sessions/MentorSessionsPage"));
 const MentorReviewsPage = lazy(() => import("./features/mentor/reviews/MentorReviewsPage"));
 const MentorAvailabilityPage = lazy(() => import("./features/mentor/availability/MentorAvailabilityPage"));
 const MentorSubjectsPage = lazy(() => import("./features/mentor/subjects/MentorSubjectsPage"));
@@ -94,6 +98,8 @@ const renderRoutes = () => (
         <Route path="/admin/subjects" element={<SubjectPage />} />
         <Route path="/admin/bookings" element={<BookingTable />} />
         <Route path="/admin/payments" element={<AdminPaymentsPage />} />
+        <Route path="/admin/sessions" element={<AdminSessionsPage />} />
+        <Route path="/admin/settlements" element={<AdminSettlementsPage />} />
         <Route path="/admin/ads" element={<AdminAdsPage />} />
         <Route path="/admin/reviews" element={<AdminReviewsPage />} />
         <Route path="/admin/referrals" element={<AdminReferralsPage />} />
@@ -112,7 +118,9 @@ const renderRoutes = () => (
       >
         <Route path="/mentor" element={<MentorDashboard />} />
         <Route path="/mentor/subjects" element={<MentorSubjectsPage />} />
+        <Route path="/mentor/requests" element={<MentorRequestsPage />} />
         <Route path="/mentor/schedule" element={<BookingTable />} />
+        <Route path="/mentor/sessions" element={<MentorSessionsPage />} />
         <Route path="/mentor/earnings" element={<MentorEarningsPage />} />
         <Route path="/mentor/availability" element={<MentorAvailabilityPage />} />
         <Route path="/mentor/reviews" element={<MentorReviewsPage />} />

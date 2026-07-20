@@ -20,6 +20,10 @@ import {
 } from "@/api/booking/moderate-booking";
 import { useDeleteBookingMutation } from "@/api/booking/delete-booking";
 import { useCancelBookingMutation } from "@/api/booking/cancel-booking";
+import {
+  useCompleteBookingMutation,
+  useCloseBookingMutation,
+} from "@/api/booking/lifecycle-api";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Skeleton } from "../ui/skeleton";
@@ -131,6 +135,30 @@ const BookingTable = () => {
 
   const { mutate: cancelBooking, isPending: isCancelling } =
     useCancelBookingMutation();
+  const { mutate: completeBooking, isPending: isCompleting } =
+    useCompleteBookingMutation();
+  const { mutate: closeBooking, isPending: isClosing } =
+    useCloseBookingMutation();
+
+  const handleComplete = (booking) => {
+    if (
+      window.confirm(
+        "Are classes over for this booking? This raises the final invoice for any unbilled sessions.",
+      )
+    ) {
+      completeBooking(booking._id);
+    }
+  };
+
+  const handleClose = (booking) => {
+    if (
+      window.confirm(
+        "Close this booking? Only allowed once every invoice has been settled.",
+      )
+    ) {
+      closeBooking(booking._id);
+    }
+  };
 
   const handleCancel = (booking) => {
     if (
@@ -299,7 +327,14 @@ const BookingTable = () => {
                         })}
                       </TableCell>
                       <TableCell className="px-4">
-                        <StatusBadge status={booking.bookingStatus} />
+                        <StatusBadge
+                          status={booking.bookingStatus}
+                          label={
+                            booking.bookingStatus === "approved"
+                              ? "Awaiting teacher"
+                              : undefined
+                          }
+                        />
                       </TableCell>
                       <TableCell className="px-4">
                         <PaymentCell booking={booking} />
@@ -332,6 +367,29 @@ const BookingTable = () => {
                                   Reject
                                 </Button>
                               </>
+                            )}
+                            {booking.bookingStatus === "confirmed" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleComplete(booking)}
+                                disabled={isCompleting}
+                                title="Classes over — raise the final invoice"
+                              >
+                                <Check className="mr-1.5 h-4 w-4" />
+                                Complete
+                              </Button>
+                            )}
+                            {booking.bookingStatus === "completed" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleClose(booking)}
+                                disabled={isClosing}
+                                title="Close once all invoices are settled"
+                              >
+                                Close
+                              </Button>
                             )}
                             <Button
                               variant="ghost"

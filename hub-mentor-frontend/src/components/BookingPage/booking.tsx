@@ -8,29 +8,33 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useBookingQuoteQuery } from "@/api/booking/quote-api";
 
 const Label = ({ children }: { children: React.ReactNode }) => (
   <h3 className="mb-2 font-display text-base font-bold text-slate-900">{children}</h3>
 );
 
 const Booking = ({ mentor, setFormData, formData }) => {
-  // ✅ Calculate subject total
-  const subjectPriceTotal = formData.selectedClass
-    ? formData.selectedClass.subject
-        .filter((s) => formData.selectedSubjects.includes(s.subject_id._id))
-        .reduce((acc, s) => acc + s.subject_price, 0)
-    : 0;
+  // Server-side pricing preview — the client never computes money.
+  const quoteQuery = useBookingQuoteQuery({
+    mentorId: mentor?._id,
+    classId: formData.selectedClass?.class_id?._id,
+    bookingType: formData.bookingType,
+    selectedSubjects: formData.selectedSubjects,
+  });
+  const quote = quoteQuery.data;
+  const quoteError = (
+    quoteQuery.error as { response?: { data?: { message?: string } } } | null
+  )?.response?.data?.message;
 
-  // ✅ Compute totalAmount once
-  const totalAmount =
-    formData.bookingType === "full"
-      ? formData.selectedClass?.price || 0
-      : subjectPriceTotal;
-
-  // ✅ Keep formData.totalAmount in sync
+  // Keep formData.totalAmount in sync for backward compat — this is the
+  // server's estimate, never shown as a payable total.
   useEffect(() => {
-    setFormData((prev) => ({ ...prev, totalAmount }));
-  }, [totalAmount, setFormData]);
+    setFormData((prev) => ({
+      ...prev,
+      totalAmount: quote?.estimatedAmount ?? 0,
+    }));
+  }, [quote?.estimatedAmount, setFormData]);
 
   if (!mentor) return <p>No mentor data available</p>;
 
@@ -138,8 +142,8 @@ const Booking = ({ mentor, setFormData, formData }) => {
                       <div className="font-semibold capitalize text-slate-900">
                         {cls.class_id.class}
                       </div>
-                      <div className="text-sm text-slate-500">
-                        Full class · ₹{cls.price}
+                      <div className="text-sm text-slate-500 uppercase">
+                        {cls.class_id.syllabus}
                       </div>
                     </div>
                     {selected && <CheckCircle2 className="h-5 w-5 text-primary" />}
@@ -213,9 +217,6 @@ const Booking = ({ mentor, setFormData, formData }) => {
                           {sub.subject_id.name}
                         </span>
                       </div>
-                      <span className="text-sm font-semibold text-slate-700">
-                        ₹{sub.subject_price}
-                      </span>
                     </label>
                   );
                 })}
@@ -228,17 +229,52 @@ const Booking = ({ mentor, setFormData, formData }) => {
             </div>
           )}
 
-        {/* 5. Total */}
+        {/* 5. Fee — server-computed rate card (no payment at booking) */}
         {formData.bookingType &&
           (formData.bookingType === "full" ||
             formData.selectedSubjects.length > 0) && (
-            <div className="flex items-center justify-between rounded-xl bg-brand-gradient px-5 py-4 text-white">
-              <span className="flex items-center gap-2 font-medium">
-                <BookOpen className="h-4 w-4" /> Total
-              </span>
-              <span className="font-display text-xl font-bold">
-                {formData.totalAmount > 0 ? `₹${formData.totalAmount}` : "Free"}
-              </span>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
+              <div className="mb-3 flex items-center gap-2 font-medium text-slate-800">
+                <BookOpen className="h-4 w-4" /> Your fee
+              </div>
+
+              {quoteQuery.isLoading && (
+                <p className="text-sm text-slate-400">Calculating fee…</p>
+              )}
+
+              {quoteError && !quoteQuery.isLoading && (
+                <p className="text-sm text-red-500">{quoteError}</p>
+              )}
+
+              {quote && !quoteQuery.isLoading && !quoteError && (
+                <div className="space-y-2">
+                  {quote.rateCard.perClassFee != null ? (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-slate-600">Per class</span>
+                      <span className="font-display text-lg font-bold text-slate-900">
+                        ₹{quote.rateCard.perClassFee}
+                      </span>
+                    </div>
+                  ) : (
+                    quote.rateCard.subjectRates.map((r) => (
+                      <div
+                        key={r.subjectId ?? r.name}
+                        className="flex items-center justify-between"
+                      >
+                        <span className="text-sm capitalize text-slate-600">
+                          {r.name || "Subject"}
+                        </span>
+                        <span className="font-semibold text-slate-900">
+                          ₹{r.hourlyRate}/hr
+                        </span>
+                      </div>
+                    ))
+                  )}
+                  <p className="pt-1 text-xs text-slate-400">
+                    {quote.billingNote}
+                  </p>
+                </div>
+              )}
             </div>
           )}
       </div>

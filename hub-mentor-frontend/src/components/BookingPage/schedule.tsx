@@ -203,27 +203,35 @@ const Schedule = ({ mentor, formData, setFormData }) => {
           </p>
           <div className="grid grid-cols-3 gap-3">
             {[
-              { f: "daily", icon: Sun, title: "Daily" },
-              { f: "weekly", icon: Repeat, title: "Weekly" },
-              { f: "monthly", icon: CalendarDays, title: "Monthly" },
-            ].map(({ f, icon: Icon, title }) => (
-              <button
-                key={f}
-                type="button"
-                onClick={() =>
-                  setFormData((prev) => ({ ...prev, paymentFrequency: f }))
-                }
-                className={cn(
-                  "flex flex-col items-center gap-1.5 rounded-xl border p-3 transition",
-                  formData.paymentFrequency === f
-                    ? "border-primary bg-primary/5 ring-1 ring-primary"
-                    : "border-slate-200 hover:border-slate-300",
-                )}
-              >
-                <Icon className="h-5 w-5 text-primary" />
-                <span className="text-sm font-semibold text-slate-800">{title}</span>
-              </button>
-            ))}
+              { f: "per-session", icon: Sun, title: "Per session", sub: "After each class" },
+              { f: "weekly", icon: Repeat, title: "Weekly", sub: "Every week" },
+              { f: "monthly", icon: CalendarDays, title: "Monthly", sub: "Every month" },
+            ].map(({ f, icon: Icon, title, sub }) => {
+              // Legacy 'daily' bookings surface as monthly here.
+              const current =
+                formData.paymentFrequency === "daily"
+                  ? "monthly"
+                  : formData.paymentFrequency;
+              return (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() =>
+                    setFormData((prev) => ({ ...prev, paymentFrequency: f }))
+                  }
+                  className={cn(
+                    "flex flex-col items-center gap-1.5 rounded-xl border p-3 text-center transition",
+                    current === f
+                      ? "border-primary bg-primary/5 ring-1 ring-primary"
+                      : "border-slate-200 hover:border-slate-300",
+                  )}
+                >
+                  <Icon className="h-5 w-5 text-primary" />
+                  <span className="text-sm font-semibold text-slate-800">{title}</span>
+                  <span className="text-[11px] text-slate-500">{sub}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 

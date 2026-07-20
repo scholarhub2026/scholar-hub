@@ -9,6 +9,7 @@ const STYLES: Record<string, string> = {
   pending: "bg-amber-50 text-amber-700 ring-amber-600/20",
   confirmed: "bg-blue-50 text-blue-700 ring-blue-600/20",
   completed: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
+  closed: "bg-slate-100 text-slate-600 ring-slate-500/20",
   cancelled: "bg-slate-100 text-slate-600 ring-slate-500/20",
   // payment
   paid: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
@@ -22,7 +23,16 @@ const STYLES: Record<string, string> = {
   inactive: "bg-slate-100 text-slate-600 ring-slate-500/20",
 };
 
-const StatusBadge = ({ status, className }: { status?: string; className?: string }) => {
+const StatusBadge = ({
+  status,
+  label,
+  className,
+}: {
+  status?: string;
+  /** Optional display text; color still keys off `status`. */
+  label?: string;
+  className?: string;
+}) => {
   const key = (status ?? "").toLowerCase();
   return (
     <span
@@ -32,7 +42,7 @@ const StatusBadge = ({ status, className }: { status?: string; className?: strin
         className,
       )}
     >
-      {status || "—"}
+      {label || status || "—"}
     </span>
   );
 };
