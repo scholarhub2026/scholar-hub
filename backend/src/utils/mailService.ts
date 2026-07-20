@@ -18,6 +18,24 @@ import {
   type PaymentReminderPayload,
   type PaymentDueDigestPayload,
 } from "../templates/paymentTemplates";
+import {
+  teacherAcceptRequestTemplate,
+  bookingAwaitingTeacherTemplate,
+  teacherAcceptedTemplate,
+  teacherDeclinedTemplate,
+  type TeacherAcceptRequestPayload,
+  type BookingAwaitingTeacherPayload,
+  type TeacherAcceptedPayload,
+  type TeacherDeclinedPayload,
+} from "../templates/bookingLifecycleTemplates";
+import {
+  invoiceGeneratedTemplate,
+  paymentReceiptTemplate,
+  settlementRecordedTemplate,
+  type InvoiceGeneratedPayload,
+  type PaymentReceiptPayload,
+  type SettlementRecordedPayload,
+} from "../templates/receiptTemplates";
 
 dotenv.config();
 
@@ -35,7 +53,14 @@ export type MailType =
   | "bookingApprovedMentor"
   | "bookingRejected"
   | "paymentReminder"
-  | "paymentDueDigest";
+  | "paymentDueDigest"
+  | "teacherAcceptRequest"
+  | "bookingAwaitingTeacher"
+  | "teacherAccepted"
+  | "teacherDeclined"
+  | "invoiceGenerated"
+  | "paymentReceipt"
+  | "settlementRecorded";
 type UserPayload = { email: string; pass: string };
 type MailPayload =
   | string
@@ -44,7 +69,14 @@ type MailPayload =
   | BookingApprovedMentorPayload
   | BookingRejectedPayload
   | PaymentReminderPayload
-  | PaymentDueDigestPayload;
+  | PaymentDueDigestPayload
+  | TeacherAcceptRequestPayload
+  | BookingAwaitingTeacherPayload
+  | TeacherAcceptedPayload
+  | TeacherDeclinedPayload
+  | InvoiceGeneratedPayload
+  | PaymentReceiptPayload
+  | SettlementRecordedPayload;
 
 // --- Providers. HTTP-API ones (Brevo, SendGrid) work on hosts that block
 // outbound SMTP ports (Railway, Render, …); plain SMTP is kept for local/other
@@ -154,7 +186,7 @@ const getHtmlContent = (type: MailType, payload: MailPayload): string => {
       if (typeof payload !== "object" || !("detail" in payload)) {
         throw new Error("Invalid bookingApprovedMentor payload");
       }
-      return bookingApprovedMentorTemplate(payload);
+      return bookingApprovedMentorTemplate(payload as BookingApprovedMentorPayload);
 
     case "bookingRejected":
       if (typeof payload !== "object" || !("mentorName" in payload)) {
@@ -173,6 +205,48 @@ const getHtmlContent = (type: MailType, payload: MailPayload): string => {
         throw new Error("Invalid paymentDueDigest payload");
       }
       return paymentDueDigestTemplate(payload);
+
+    case "teacherAcceptRequest":
+      if (typeof payload !== "object" || !("detail" in payload && "frequency" in payload)) {
+        throw new Error("Invalid teacherAcceptRequest payload");
+      }
+      return teacherAcceptRequestTemplate(payload as TeacherAcceptRequestPayload);
+
+    case "bookingAwaitingTeacher":
+      if (typeof payload !== "object" || !("mentorName" in payload)) {
+        throw new Error("Invalid bookingAwaitingTeacher payload");
+      }
+      return bookingAwaitingTeacherTemplate(payload as BookingAwaitingTeacherPayload);
+
+    case "teacherAccepted":
+      if (typeof payload !== "object" || !("billingLine" in payload)) {
+        throw new Error("Invalid teacherAccepted payload");
+      }
+      return teacherAcceptedTemplate(payload as TeacherAcceptedPayload);
+
+    case "teacherDeclined":
+      if (typeof payload !== "object" || !("mentorName" in payload)) {
+        throw new Error("Invalid teacherDeclined payload");
+      }
+      return teacherDeclinedTemplate(payload as TeacherDeclinedPayload);
+
+    case "invoiceGenerated":
+      if (typeof payload !== "object" || !("invoiceNumber" in payload)) {
+        throw new Error("Invalid invoiceGenerated payload");
+      }
+      return invoiceGeneratedTemplate(payload as InvoiceGeneratedPayload);
+
+    case "paymentReceipt":
+      if (typeof payload !== "object" || !("receiptNumber" in payload)) {
+        throw new Error("Invalid paymentReceipt payload");
+      }
+      return paymentReceiptTemplate(payload as PaymentReceiptPayload);
+
+    case "settlementRecorded":
+      if (typeof payload !== "object" || !("settlementNumber" in payload)) {
+        throw new Error("Invalid settlementRecorded payload");
+      }
+      return settlementRecordedTemplate(payload as SettlementRecordedPayload);
 
     default:
       throw new Error("Unsupported mail type");

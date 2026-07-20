@@ -2,6 +2,7 @@ import { schedule } from 'node-cron'
 
 import Booking from '../models/Booking'
 import Auth from '../models/Auth'
+import Invoice from '../models/Invoice'
 import { sendMail } from '../utils/mailService'
 import { sendPushToRole, sendPushToUser } from '../utils/pushService'
 import {
@@ -31,8 +32,11 @@ export const runPaymentReminders = async (
   const t = todayIST(now)
   const twelveHoursAgo = new Date(now.getTime() - 12 * 3600_000)
 
+  // Legacy-flat branch only: metered bookings also carry a nextDueDate (their
+  // invoice boundary) but students owe against INVOICES, reminded below.
   const due = await Booking.find({
     bookingStatus: 'confirmed',
+    billingMode: { $ne: 'metered' },
     nextDueDate: { $ne: null, $lte: t },
     $or: [
       { lastReminderAt: null },
@@ -96,6 +100,65 @@ export const runPaymentReminders = async (
       await Booking.updateOne({ _id: booking._id }, { lastReminderAt: now })
     } catch (err: any) {
       console.error('[reminders] booking failed:', booking._id.toString(), err.message)
+    }
+  }
+
+  // ---- Metered branch: remind per unpaid INVOICE (billing v2) ----
+  const dueInvoices = await Invoice.find({
+    status: 'payment_due',
+    $or: [
+      { lastReminderAt: null },
+      { lastReminderAt: { $lt: twelveHoursAgo } },
+    ],
+  }).limit(500)
+
+  for (const invoice of dueInvoices) {
+    try {
+      const dueDate = toUtcMidnight(invoice.periodEnd)
+      const overdueDays = daysOverdue(dueDate, t)
+      const mentorName = invoice.mentorName || 'your mentor'
+      const dueLabel = formatDueDate(dueDate)
+
+      sendMail(
+        invoice.email ?? '',
+        overdueDays > 0
+          ? `Payment overdue (${overdueDays} day${overdueDays === 1 ? '' : 's'}) — Scholar Hub`
+          : 'Payment due — Scholar Hub',
+        'paymentReminder',
+        {
+          studentName: invoice.studentName || 'there',
+          mentorName,
+          amount: invoice.amount,
+          frequency: invoice.paymentFrequency || 'monthly',
+          dueDate: dueLabel,
+          daysOverdue: overdueDays,
+        }
+      ).catch(err => console.error('[reminders] invoice mail failed:', err.message))
+
+      sendPushToUser(invoice.studentId?.toString() ?? '', {
+        title: overdueDays > 0 ? 'Payment overdue' : 'Payment due',
+        body:
+          overdueDays > 0
+            ? `₹${invoice.amount} (${invoice.invoiceNumber}) is ${overdueDays} day${overdueDays === 1 ? '' : 's'} overdue.`
+            : `₹${invoice.amount} (${invoice.invoiceNumber}) is due for your classes with ${mentorName}.`,
+        data: {
+          type: 'payment_due',
+          bookingId: invoice.bookingId?.toString() ?? '',
+          invoiceId: invoice._id.toString(),
+        },
+      }).catch(err => console.error('[reminders] invoice push failed:', err.message))
+
+      digestItems.push({
+        studentName: invoice.studentName || 'Student',
+        mentorName,
+        amount: invoice.amount,
+        dueDate: dueLabel,
+        daysOverdue: overdueDays,
+      })
+
+      await Invoice.updateOne({ _id: invoice._id }, { lastReminderAt: now })
+    } catch (err: any) {
+      console.error('[reminders] invoice failed:', invoice._id.toString(), err.message)
     }
   }
 

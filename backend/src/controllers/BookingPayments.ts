@@ -1,6 +1,8 @@
 import { Request, Response } from 'express'
 
 import Booking from '../models/Booking'
+import Payment from '../models/Payment'
+import { nextNumber } from '../models/Counter'
 import { catchAsync } from '../utils/catchAsync'
 import { mongooseIdValidator } from '../utils/validateFeilds'
 import { sendMail } from '../utils/mailService'
@@ -10,12 +12,14 @@ import {
   advanceByFrequency,
   daysOverdue,
   formatDueDate,
+  NEW_BOOKING_FREQUENCIES,
   PAYMENT_FREQUENCIES,
   periodLabelFor,
   toUtcMidnight,
   todayIST,
   type PaymentFrequency,
 } from '../utils/paymentSchedule'
+import { audit } from '../utils/audit'
 
 const mentorFullName = (mentor: any): string =>
   `${mentor?.firstName ?? ''} ${mentor?.lastName ?? ''}`.trim() || 'your mentor'
@@ -34,9 +38,10 @@ const bookingDetail = (booking: any): string => {
 
 /**
  * PATCH /api/booking/:bookingId/approve  (ADMIN)
- * Confirms a pending booking and starts its payment schedule: the first due
- * date is classStartDate + one period (fees are collected AFTER classes).
- * Notifies the student and the mentor by email + push (best-effort).
+ * Admin approval — first gate of the SRD state machine. The booking moves
+ * pending → approved and is handed to the TEACHER, who must accept before
+ * classes (and billing) start. The payment schedule is set up at
+ * teacher-accept, not here.
  */
 export const approveBookingController = catchAsync(
   async (req: Request, res: Response) => {
@@ -59,13 +64,18 @@ export const approveBookingController = catchAsync(
     }
 
     // Optional admin overrides at approval time. (Express 5 leaves req.body
-    // undefined when no JSON body was sent.)
+    // undefined when no JSON body was sent.) 'daily' is allowed only for
+    // legacy-flat bookings — new metered bookings follow the SRD frequencies.
     const body = req.body ?? {}
     if (body.paymentFrequency !== undefined) {
-      if (!PAYMENT_FREQUENCIES.includes(body.paymentFrequency)) {
-        return res
-          .status(400)
-          .json({ message: 'paymentFrequency must be daily, weekly or monthly' })
+      const allowed =
+        booking.billingMode === 'legacy-flat'
+          ? PAYMENT_FREQUENCIES
+          : NEW_BOOKING_FREQUENCIES
+      if (!allowed.includes(body.paymentFrequency)) {
+        return res.status(400).json({
+          message: 'paymentFrequency must be per-session, weekly or monthly',
+        })
       }
       booking.paymentFrequency = body.paymentFrequency
     }
@@ -77,57 +87,56 @@ export const approveBookingController = catchAsync(
       booking.classStartDate = toUtcMidnight(parsed)
     }
 
-    const freq: PaymentFrequency =
-      (booking.paymentFrequency as PaymentFrequency) || 'monthly'
-    // createdAt fallback covers legacy bookings that never sent a start date.
-    const start = toUtcMidnight(
-      booking.classStartDate ?? booking.bookingDate ?? booking.createdAt ?? new Date()
-    )
-
-    booking.paymentFrequency = freq
-    booking.classStartDate = start
-    booking.bookingStatus = 'confirmed'
+    booking.bookingStatus = 'approved'
     booking.approvedAt = new Date()
-    booking.nextDueDate = advanceByFrequency(start, freq) // pay AFTER first period
     await booking.save()
+
+    audit({
+      entityType: 'booking',
+      entityId: booking._id,
+      action: 'admin_approve',
+      actorId: (req as any).user?._id,
+      actorRole: 'ADMIN',
+    })
 
     // ---- Notify (best-effort; never fail the approval) ----
     const mentor: any = booking.mentorId
     const mentorName = mentorFullName(mentor)
-    const startLabel = formatDueDate(start)
-    const dueLabel = formatDueDate(booking.nextDueDate)
-
-    sendMail(booking.email, 'Your booking is confirmed — Scholar Hub', 'bookingApproved', {
-      studentName: booking.studentName,
-      mentorName,
-      amount: booking.totalAmount,
-      frequency: freq,
-      startDate: startLabel,
-      firstDueDate: dueLabel,
-    }).catch(err => console.error('[mail] approve student failed:', err.message))
+    const freqLabel =
+      booking.paymentFrequency === 'per-session'
+        ? 'Per session'
+        : booking.paymentFrequency === 'weekly'
+          ? 'Weekly'
+          : booking.paymentFrequency === 'daily'
+            ? 'Daily'
+            : 'Monthly'
 
     if (mentor?.email) {
-      sendMail(mentor.email, 'New confirmed student — Scholar Hub', 'bookingApprovedMentor', {
+      sendMail(mentor.email, 'A student is waiting for you — Scholar Hub', 'teacherAcceptRequest', {
         mentorName,
         studentName: booking.studentName,
         detail: bookingDetail(booking),
-        startDate: startLabel,
+        frequency: freqLabel,
       }).catch(err => console.error('[mail] approve mentor failed:', err.message))
     }
+    sendMail(booking.email, 'Your booking was approved — Scholar Hub', 'bookingAwaitingTeacher', {
+      studentName: booking.studentName,
+      mentorName,
+    }).catch(err => console.error('[mail] approve student failed:', err.message))
 
     const idStr = booking._id.toString()
+    sendPushToUser(mentor?._id?.toString() ?? '', {
+      title: 'New booking to accept',
+      body: `${booking.studentName}'s booking is approved — please accept or decline.`,
+      data: { type: 'teacher_accept_request', bookingId: idStr },
+    }).catch(err => console.error('[push] approve mentor failed:', err.message))
     sendPushToUser(booking.studentId?.toString() ?? '', {
-      title: 'Booking approved 🎉',
-      body: `Your classes with ${mentorName} are confirmed. Starts ${startLabel}.`,
+      title: 'Booking approved',
+      body: `Approved! We're waiting for ${mentorName} to accept your booking.`,
       data: { type: 'booking_approved', bookingId: idStr },
     }).catch(err => console.error('[push] approve student failed:', err.message))
-    sendPushToUser(mentor?._id?.toString() ?? '', {
-      title: 'New confirmed student',
-      body: `${booking.studentName}'s booking is confirmed. Classes start ${startLabel}.`,
-      data: { type: 'booking', bookingId: idStr },
-    }).catch(err => console.error('[push] approve mentor failed:', err.message))
 
-    return res.status(200).json({ message: 'Booking approved', booking })
+    return res.status(200).json({ message: 'Booking approved — awaiting teacher acceptance', booking })
   }
 )
 
@@ -213,10 +222,23 @@ export const recordPaymentController = catchAsync(
         .status(409)
         .json({ message: 'Approve the booking before recording payments.' })
     }
+    if (booking.bookingStatus === 'approved') {
+      return res.status(409).json({
+        message: 'The teacher has not accepted this booking yet.',
+      })
+    }
     if (booking.bookingStatus === 'cancelled') {
       return res
         .status(409)
         .json({ message: 'This booking is cancelled.' })
+    }
+    // Metered (billing v2) bookings are paid against their invoices — this
+    // endpoint only serves pre-rework legacy-flat bookings.
+    if (booking.billingMode === 'metered') {
+      return res.status(409).json({
+        message:
+          'This booking uses invoice billing. Record the payment against its invoice instead.',
+      })
     }
 
     const body = req.body ?? {}
@@ -234,13 +256,17 @@ export const recordPaymentController = catchAsync(
       : todayIST()
     const isFirstPayment = (booking.payments?.length ?? 0) === 0
 
+    const collectedAt = body.collectedAt ? new Date(body.collectedAt) : new Date()
+    const note = typeof body.note === 'string' ? body.note.trim() : ''
+    const periodLabel = periodLabelFor(dueBeingPaid, freq)
+
     booking.payments = booking.payments ?? []
     booking.payments.push({
       amount,
-      collectedAt: body.collectedAt ? new Date(body.collectedAt) : new Date(),
-      note: typeof body.note === 'string' ? body.note.trim() : '',
+      collectedAt,
+      note,
       collectedBy: (req as any).user?._id ?? null,
-      periodLabel: periodLabelFor(dueBeingPaid, freq),
+      periodLabel,
     })
     // Each mark-paid settles exactly one period; if several periods are
     // overdue the admin taps once per period collected.
@@ -253,13 +279,55 @@ export const recordPaymentController = catchAsync(
       await rewardReferralOnBooking(booking.studentId?.toString())
     }
 
+    // Ledger entry + emailed receipt (billing v2 additions — best-effort, the
+    // embedded payments[] above remains the legacy source of truth).
+    const receiptNumber = await nextNumber('receipt')
+    const ledgerEntry = await Payment.create({
+      receiptNumber,
+      invoiceId: null,
+      bookingId: booking._id,
+      studentId: booking.studentId ?? null,
+      amount,
+      method: ['cash', 'upi', 'bank-transfer'].includes(body.method)
+        ? body.method
+        : 'other',
+      collectedAt,
+      collectedBy: (req as any).user?._id ?? null,
+      note,
+      periodLabel,
+      legacy: true,
+    })
+    audit({
+      entityType: 'payment',
+      entityId: ledgerEntry._id,
+      action: 'payment_record',
+      actorId: (req as any).user?._id,
+      actorRole: 'ADMIN',
+      meta: { bookingId: String(booking._id), amount, receiptNumber },
+    })
+    sendMail(booking.email, `Payment receipt ${receiptNumber} — Scholar Hub`, 'paymentReceipt', {
+      studentName: booking.studentName,
+      mentorName: 'your mentor',
+      receiptNumber,
+      periodLabel,
+      lineItems: [{ description: `Class fee — ${periodLabel}`, amount }],
+      total: amount,
+      method: String(ledgerEntry.method),
+      collectedAt: formatDueDate(toUtcMidnight(collectedAt)),
+    })
+      .then(() => {
+        ledgerEntry.receiptEmailedAt = new Date()
+        return ledgerEntry.save()
+      })
+      .catch(err => console.error('[mail] payment receipt failed:', err.message))
+
     sendPushToUser(booking.studentId?.toString() ?? '', {
       title: 'Payment received',
       body: `We've recorded your payment of ₹${amount}. Thank you!`,
       data: { type: 'payment_recorded', bookingId: booking._id.toString() },
     }).catch(err => console.error('[push] payment recorded failed:', err.message))
 
-    return res.status(200).json({ message: 'Payment recorded', booking })
+    return res.status(200).json({ message: 'Payment recorded', booking, receiptNumber })
   }
 )
 
@@ -282,9 +350,12 @@ export const getDuePaymentsController = catchAsync(
     const t = todayIST()
     const tomorrow = new Date(t.getTime() + 86_400_000)
 
+    // Legacy-flat bookings only: metered bookings also carry a nextDueDate
+    // (their invoice boundary) but are collected via the Invoices tab.
     const base: Record<string, any> = {
       bookingStatus: 'confirmed',
       nextDueDate: { $ne: null },
+      billingMode: { $ne: 'metered' },
     }
     if (search) {
       // Server-side search on denormalized fields so pagination stays correct.

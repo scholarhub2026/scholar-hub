@@ -10,6 +10,13 @@ export type MailType =
   | 'bookingRejected'
   | 'paymentReminder'
   | 'paymentDueDigest'
+  | 'teacherAcceptRequest'
+  | 'bookingAwaitingTeacher'
+  | 'teacherAccepted'
+  | 'teacherDeclined'
+  | 'invoiceGenerated'
+  | 'paymentReceipt'
+  | 'settlementRecorded'
 
 export const sentMails: Array<{ to: string; subject: string; type: MailType }> = []
 

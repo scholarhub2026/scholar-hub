@@ -48,6 +48,10 @@ import mongoose, { Document} from 'mongoose'
     upi_id?: string
   }
 
+  // SRD custom-fee override: true → this tutor's own selected_class rates are
+  // used for billing; false → global catalog (Classes) fees apply.
+  custom_fee_enabled?: boolean
+
   id_proof?: string
   admin_approve?: boolean
   additional_details?: string

@@ -1,6 +1,7 @@
 import { createApp } from './app.js'
 import { connectDB } from './utils/db.js'
 import { startPaymentReminderJob } from './jobs/paymentReminderJob.js'
+import { startInvoiceGenerationJob } from './jobs/invoiceGenerationJob.js'
 
 const app = createApp()
 const PORT = process.env.PORT || 5000
@@ -8,9 +9,10 @@ const PORT = process.env.PORT || 5000
 // Connect to DB
 connectDB()
 
-// Daily payment-due reminders (push + email). Skipped in tests; set
-// DISABLE_CRON=true to turn off on extra replicas.
+// Daily crons: invoice generation (08:00 IST) then payment-due reminders
+// (09:00 IST). Skipped in tests; set DISABLE_CRON=true on extra replicas.
 if (process.env.NODE_ENV !== 'test' && process.env.DISABLE_CRON !== 'true') {
+  startInvoiceGenerationJob()
   startPaymentReminderJob()
 }
 

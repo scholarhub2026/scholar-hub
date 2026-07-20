@@ -48,7 +48,16 @@ export interface IBooking extends Document {
   createdAt?: Date
   updatedAt?: Date
   otp?: string
-  bookingStatus?: 'pending' | 'confirmed' | 'completed' | 'cancelled',
+  // Lifecycle: pending → approved (admin) → confirmed (teacher accepts) →
+  // completed (classes over) → closed (all invoices settled). 'cancelled' from
+  // pending/approved/confirmed. Per-cycle payment states live on Invoice.
+  bookingStatus?:
+    | 'pending'
+    | 'approved'
+    | 'confirmed'
+    | 'completed'
+    | 'closed'
+    | 'cancelled',
   bookingLogs?: {
     _id?:string;
     date: Date;
@@ -69,14 +78,34 @@ export interface IBooking extends Document {
     date?: Date | null;
     claimKey?: string | null;
   }[];
-  // Manual payment collection: fees are collected by the admin AFTER classes,
-  // on a daily/weekly/monthly cadence. `totalAmount` is the fee PER period.
-  paymentFrequency?: 'daily' | 'weekly' | 'monthly' | '';
+  // Manual payment collection: fees are collected by the admin AFTER classes.
+  // legacy-flat: `totalAmount` is a flat fee PER period (daily/weekly/monthly).
+  // metered: invoices are computed from verified sessions (per-session/weekly/
+  // monthly); `totalAmount` is only a server-computed estimate.
+  paymentFrequency?: 'daily' | 'weekly' | 'monthly' | 'per-session' | '';
   classStartDate?: Date | null; // UTC-midnight calendar date
-  nextDueDate?: Date | null; // UTC-midnight; null until admin approves
+  nextDueDate?: Date | null; // UTC-midnight; legacy: next collection; metered: next invoice boundary
   approvedAt?: Date | null;
   rejectionReason?: string;
   lastReminderAt?: Date | null; // reminder dedup (real instant)
+  // ---- Billing v2 (SRD rework) ----
+  // Which billing path this booking uses. Existing bookings are stamped
+  // 'legacy-flat' by the migration and keep the old flat-fee flow untouched.
+  billingMode?: 'legacy-flat' | 'metered';
+  teacherAcceptedAt?: Date | null;
+  teacherDeclineReason?: string;
+  // Rates frozen at teacher-accept so later fee edits never change an active
+  // booking (SRD custom-fee override + snapshot requirement).
+  pricingSnapshot?: {
+    source: 'custom' | 'default';
+    perClassFee?: number | null; // bookingType 'full'
+    subjectRates?: {
+      subject_id?: Types.ObjectId | null;
+      name: string;
+      hourlyRate: number;
+    }[];
+    snapshottedAt?: Date | null;
+  } | null;
   payments?: {
     _id?: Types.ObjectId;
     amount: number;
@@ -194,7 +223,7 @@ const BookingSchema = new mongoose.Schema<IBooking>(
     },
     bookingStatus:{
       type: String,
-      enum: ['pending', 'confirmed', 'completed', 'cancelled'],
+      enum: ['pending', 'approved', 'confirmed', 'completed', 'closed', 'cancelled'],
       default: 'pending',
     },
      orderId:{ type: String, default: '' },
@@ -234,7 +263,9 @@ const BookingSchema = new mongoose.Schema<IBooking>(
     // '' = legacy booking created before this feature (like sessionMode).
     paymentFrequency: {
       type: String,
-      enum: ['daily', 'weekly', 'monthly', ''],
+      // 'daily' is legacy-only (rejected for new bookings); 'per-session'
+      // bookings are invoiced per verified session, no calendar cycle.
+      enum: ['daily', 'weekly', 'monthly', 'per-session', ''],
       default: '',
     },
     classStartDate: { type: Date, default: null }, // UTC-midnight calendar date
@@ -261,6 +292,42 @@ const BookingSchema = new mongoose.Schema<IBooking>(
         periodLabel: { type: String, default: '' }, // e.g. "Aug 2026"
       },
     ],
+
+    // ---- Billing v2 (SRD rework) ----
+    // 'legacy-flat' = pre-rework flat fee per period (existing bookings, old
+    // recordPayment path). 'metered' = invoices computed from verified sessions.
+    // NO schema default on purpose: createBooking sets 'metered' explicitly and
+    // the migration stamps old docs 'legacy-flat' — a mongoose default would
+    // make un-migrated legacy docs read as 'metered'.
+    billingMode: {
+      type: String,
+      enum: ['legacy-flat', 'metered'],
+    },
+    teacherAcceptedAt: { type: Date, default: null },
+    teacherDeclineReason: { type: String, default: '' },
+    // Rates frozen at teacher-accept (see pricingEngine.resolveRateCard).
+    pricingSnapshot: {
+      type: new mongoose.Schema(
+        {
+          source: { type: String, enum: ['custom', 'default'], required: true },
+          perClassFee: { type: Number, default: null },
+          subjectRates: [
+            {
+              subject_id: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'SubjectModel',
+                default: null,
+              },
+              name: { type: String, default: '' },
+              hourlyRate: { type: Number, required: true },
+            },
+          ],
+          snapshottedAt: { type: Date, default: null },
+        },
+        { _id: false }
+      ),
+      default: null,
+    },
 
   },
 

@@ -4,10 +4,23 @@
  * "today" is the IST calendar day (the business runs in India, servers on UTC).
  */
 
-export type PaymentFrequency = 'daily' | 'weekly' | 'monthly'
+export type PaymentFrequency = 'daily' | 'weekly' | 'monthly' | 'per-session'
 
+/** Every frequency any stored booking may carry (incl. legacy 'daily'). */
 export const PAYMENT_FREQUENCIES: PaymentFrequency[] = [
   'daily',
+  'weekly',
+  'monthly',
+  'per-session',
+]
+
+/**
+ * Frequencies accepted for NEW (metered) bookings per the SRD:
+ * per-session / weekly / monthly. 'daily' is legacy-only — existing bookings
+ * keep it, but create/approve reject it.
+ */
+export const NEW_BOOKING_FREQUENCIES: PaymentFrequency[] = [
+  'per-session',
   'weekly',
   'monthly',
 ]
@@ -36,6 +49,9 @@ export const advanceByFrequency = (
   const y = date.getUTCFullYear()
   const m = date.getUTCMonth()
   const d = date.getUTCDate()
+  // 'per-session' has no calendar cycle — invoices are generated per verified
+  // session, and nextDueDate stays null. Identity keeps callers total.
+  if (freq === 'per-session') return new Date(date.getTime())
   if (freq === 'daily') return new Date(Date.UTC(y, m, d + 1))
   if (freq === 'weekly') return new Date(Date.UTC(y, m, d + 7))
   const lastOfTarget = new Date(Date.UTC(y, m + 2, 0)).getUTCDate()
@@ -61,6 +77,7 @@ export const periodLabelFor = (dueDate: Date, freq: PaymentFrequency): string =>
     case 'weekly':
       return `Week of ${formatDueDate(dueDate)}`
     case 'daily':
+    case 'per-session':
       return formatDueDate(dueDate)
   }
 }

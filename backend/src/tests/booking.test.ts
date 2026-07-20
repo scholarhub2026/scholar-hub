@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import request from 'supertest'
 import { createApp } from '../app'
+import Classes from '../models/Classes'
 import {
   seedStudent,
   seedMentor,
@@ -41,7 +42,7 @@ describe('Booking flow', () => {
       expect(res.body.newBooking.paymentStatus).toBe('pending')
     })
 
-    it('creates a free (₹0) booking', async () => {
+    it('ignores client-sent totalAmount and stores the server estimate', async () => {
       const { student, mentor, subjectId, classId, email } = await scenario()
       const res = await request(app)
         .post('/api/booking')
@@ -50,7 +51,9 @@ describe('Booking flow', () => {
           bookingPayload({ studentId: student.id, mentorId: mentor.id, classId, subjectId, email, totalAmount: 0 })
         )
       expect(res.status).toBe(201)
-      expect(res.body.newBooking.totalAmount).toBe(0)
+      // Catalog rate for the subject is 500/hr — the client's 0 is not trusted.
+      expect(res.body.newBooking.totalAmount).toBe(500)
+      expect(res.body.newBooking.billingMode).toBe('metered')
     })
 
     it('rejects missing required fields', async () => {
@@ -93,6 +96,10 @@ describe('Booking flow', () => {
     it('allows booking a DIFFERENT subject with the same mentor', async () => {
       const { student, mentor, subjectId, classId, email } = await scenario()
       const other = await seedSubject('science')
+      // The new subject must have a catalog fee for server-side pricing.
+      await Classes.findByIdAndUpdate(classId, {
+        $push: { subjects: { subjectId: other._id, price: 400 } },
+      })
       await request(app)
         .post('/api/booking')
         .set('Authorization', student.token)

@@ -22,13 +22,17 @@ import {
   singleClaimKey,
 } from '../utils/availability'
 import {
-  PAYMENT_FREQUENCIES,
+  NEW_BOOKING_FREQUENCIES,
   toUtcMidnight,
   todayIST,
 } from '../utils/paymentSchedule'
+import { PricingError } from '../utils/pricingEngine'
+import { resolveRatesForBooking } from '../utils/rateResolution'
 
 export const createBookingController = async (req, res) => {
   try {
+    // totalAmount is no longer a client input — the server computes it from
+    // the resolved rate card (SRD billing engine).
     const validation = await validateRequiredFeilds(req.body, [
       'studentId',
       'mentorId',
@@ -39,7 +43,6 @@ export const createBookingController = async (req, res) => {
       'selectedSyllabus',
 
       'bookingType',
-      'totalAmount',
       'email',
       'phone',
     ])
@@ -55,17 +58,62 @@ export const createBookingController = async (req, res) => {
 
     // ---- Manual payment collection fields ----
     // Frequency: optional for backward compat with older clients — default
-    // monthly. The booking's totalAmount is the fee PER period.
+    // monthly. New (metered) bookings bill per-session/weekly/monthly; the
+    // legacy 'daily' cadence is rejected here (SRD).
     if (
       req.body.paymentFrequency !== undefined &&
       req.body.paymentFrequency !== '' &&
-      !PAYMENT_FREQUENCIES.includes(req.body.paymentFrequency)
+      !NEW_BOOKING_FREQUENCIES.includes(req.body.paymentFrequency)
     ) {
-      return res
-        .status(400)
-        .json({ message: 'paymentFrequency must be daily, weekly or monthly' })
+      return res.status(400).json({
+        message: 'paymentFrequency must be per-session, weekly or monthly',
+      })
     }
     if (!req.body.paymentFrequency) req.body.paymentFrequency = 'monthly'
+
+    // ---- Server-side pricing (SRD billing engine) ----
+    // Resolve the rate card now so misconfigured fees fail loudly at booking
+    // time instead of at invoicing. The stored totalAmount is an advisory
+    // estimate (per class / summed ₹ per hour) — real charges come from
+    // verified sessions. Rates are re-resolved & frozen at teacher-accept.
+    const quoteClassId =
+      req.body.selectedClass?.class_id?._id ?? req.body.selectedClass?.class_id
+    if (!['full', 'individual', 'multiple'].includes(req.body.bookingType)) {
+      return res
+        .status(400)
+        .json({ message: 'bookingType must be full, individual or multiple' })
+    }
+    const quoteSubjects: string[] = Array.isArray(req.body.selectedSubjects)
+      ? req.body.selectedSubjects.map(String)
+      : []
+    if (req.body.bookingType === 'individual' && quoteSubjects.length !== 1) {
+      return res
+        .status(400)
+        .json({ message: 'Select exactly one subject for an individual booking' })
+    }
+    if (req.body.bookingType === 'multiple' && quoteSubjects.length < 1) {
+      return res
+        .status(400)
+        .json({ message: 'Select at least one subject for a multiple booking' })
+    }
+    if (!quoteClassId) {
+      return res.status(400).json({ message: 'selectedClass.class_id is required' })
+    }
+    try {
+      const { estimatedAmount } = await resolveRatesForBooking({
+        mentorId: String(req.body.mentorId),
+        classId: String(quoteClassId),
+        bookingType: req.body.bookingType,
+        selectedSubjectIds: quoteSubjects,
+      })
+      req.body.totalAmount = estimatedAmount
+    } catch (err) {
+      if (err instanceof PricingError) {
+        return res.status(422).json({ message: err.message, code: err.code })
+      }
+      throw err
+    }
+    req.body.billingMode = 'metered'
 
     if (req.body.classStartDate) {
       const raw = String(req.body.classStartDate)
@@ -92,6 +140,9 @@ export const createBookingController = async (req, res) => {
     delete req.body.approvedAt
     delete req.body.lastReminderAt
     delete req.body.rejectionReason
+    delete req.body.pricingSnapshot
+    delete req.body.teacherAcceptedAt
+    delete req.body.teacherDeclineReason
     req.body.bookingStatus = 'pending'
 
     // Normalize email so a returning student is matched case-insensitively
@@ -465,7 +516,9 @@ export const getBookingsForAdmin = async (req, res) => {
         break
       case 'TUTOR':
         filter.mentorId = studentId
-        filter.bookingStatus = 'confirmed'
+        // Active teaching + history; 'approved' requests live in the separate
+        // GET /booking/mentor/requests queue.
+        filter.bookingStatus = { $in: ['confirmed', 'completed', 'closed'] }
         break
       case 'STUDENT':
         filter.studentId = studentId

@@ -9,8 +9,10 @@ const stub = (name: string) => path.resolve(root, 'src/tests/stubs', `${name}.ts
 const STUBS: Array<[RegExp, string]> = [
   [/^jsonwebtoken$/, stub('jsonwebtoken')],
   [/^razorpay$/, stub('razorpay')],
-  [/utils\/mailService(\.js)?$/, stub('mailService')],
-  [/utils\/pushService(\.js)?$/, stub('pushService')],
+  // Match both '../utils/mailService' (controllers) and './mailService'
+  // (siblings inside utils/) — there is only one module with each name.
+  [/(^|\/)mailService(\.js)?$/, stub('mailService')],
+  [/(^|\/)pushService(\.js)?$/, stub('pushService')],
 ]
 
 // The backend is NodeNext ESM: source files import each other with `.js`

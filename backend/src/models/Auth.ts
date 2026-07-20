@@ -113,6 +113,12 @@ const AuthSchema = new Schema<IAuth>(
       type: String,
     },
     selected_class: [SelectedClassSchema],
+    // SRD custom-fee override: when true the pricing engine uses this tutor's
+    // selected_class rates; when false it falls back to global catalog fees.
+    custom_fee_enabled: {
+      type: Boolean,
+      default: false,
+    },
     payment_details: {
       back_account: {
         type: String,

@@ -60,6 +60,32 @@ async function createBooking(
   return res
 }
 
+/**
+ * Put a booking into the state the billing-v2 migration leaves pre-rework
+ * bookings in: legacy-flat, already confirmed, with a running due schedule.
+ * The old flat-fee mark-paid flow only serves these.
+ */
+async function makeLegacyConfirmed(
+  id: string,
+  opts: { start?: string; freq?: 'daily' | 'weekly' | 'monthly' } = {}
+) {
+  const start = opts.start
+    ? new Date(`${opts.start}T00:00:00.000Z`)
+    : todayIST()
+  const freq = opts.freq ?? 'monthly'
+  await Booking.updateOne(
+    { _id: id },
+    {
+      billingMode: 'legacy-flat',
+      bookingStatus: 'confirmed',
+      approvedAt: new Date(),
+      paymentFrequency: freq,
+      classStartDate: start,
+      nextDueDate: advanceByFrequency(start, freq),
+    }
+  )
+}
+
 describe('Manual payment collection', () => {
   describe('create booking (schedule fields)', () => {
     it('persists paymentFrequency and classStartDate', async () => {
@@ -120,7 +146,7 @@ describe('Manual payment collection', () => {
       expect(res.status).toBe(403)
     })
 
-    it('confirms the booking and schedules the first due one period after start', async () => {
+    it('moves the booking to approved and asks the teacher to accept', async () => {
       const s = await scenario()
       const start = istDatePlus(2)
       const created = await createBooking(s, {
@@ -133,16 +159,15 @@ describe('Manual payment collection', () => {
         .patch(`/api/booking/${created.body.newBooking._id}/approve`)
         .set('Authorization', s.admin.token)
       expect(res.status).toBe(200)
-      expect(res.body.booking.bookingStatus).toBe('confirmed')
+      expect(res.body.booking.bookingStatus).toBe('approved')
       expect(res.body.booking.approvedAt).toBeTruthy()
+      // Billing does NOT start until the teacher accepts.
+      expect(res.body.booking.nextDueDate).toBeNull()
 
-      const expectedDue = advanceByFrequency(new Date(`${start}T00:00:00.000Z`), 'monthly')
-      expect(dateKeyOf(new Date(res.body.booking.nextDueDate))).toBe(dateKeyOf(expectedDue))
-
-      // Student + mentor each got an approval email.
+      // Teacher got the accept request; student got the "awaiting teacher" note.
       const types = sentMails.map(m => m.type)
-      expect(types).toContain('bookingApproved')
-      expect(types).toContain('bookingApprovedMentor')
+      expect(types).toContain('teacherAcceptRequest')
+      expect(types).toContain('bookingAwaitingTeacher')
     })
 
     it('is idempotent-guarded: approving twice → 409', async () => {
@@ -156,12 +181,14 @@ describe('Manual payment collection', () => {
       expect(again.status).toBe(409)
     })
 
-    it('falls back to createdAt when no start date exists', async () => {
+    it('falls back to createdAt for the start date at teacher-accept', async () => {
       const s = await scenario()
       const created = await createBooking(s) // no classStartDate, no slots
+      const id = created.body.newBooking._id
+      await request(app).patch(`/api/booking/${id}/approve`).set('Authorization', s.admin.token)
       const res = await request(app)
-        .patch(`/api/booking/${created.body.newBooking._id}/approve`)
-        .set('Authorization', s.admin.token)
+        .patch(`/api/booking/${id}/teacher-accept`)
+        .set('Authorization', s.mentor.token)
       expect(res.status).toBe(200)
       expect(res.body.booking.nextDueDate).toBeTruthy()
       expect(res.body.booking.classStartDate).toBeTruthy()
@@ -256,15 +283,28 @@ describe('Manual payment collection', () => {
       expect(res.status).toBe(409)
     })
 
-    it('records a payment with the default amount and advances the due date', async () => {
+    it('refuses on a metered (billing v2) booking — pay via invoice (409)', async () => {
       const s = await scenario()
-      const start = istDatePlus(1)
-      const created = await createBooking(s, {
-        paymentFrequency: 'weekly',
-        classStartDate: start,
-      })
+      const created = await createBooking(s)
       const id = created.body.newBooking._id
       await request(app).patch(`/api/booking/${id}/approve`).set('Authorization', s.admin.token)
+      await request(app)
+        .patch(`/api/booking/${id}/teacher-accept`)
+        .set('Authorization', s.mentor.token)
+      const res = await request(app)
+        .post(`/api/booking/${id}/payments`)
+        .set('Authorization', s.admin.token)
+        .send({})
+      expect(res.status).toBe(409)
+    })
+
+    it('records a payment with the default amount and advances the due date (legacy-flat)', async () => {
+      const s = await scenario()
+      const start = istDatePlus(1)
+      const created = await createBooking(s)
+      const id = created.body.newBooking._id
+      await makeLegacyConfirmed(id, { start, freq: 'weekly' })
+      sentMails.length = 0
 
       const res = await request(app)
         .post(`/api/booking/${id}/payments`)
@@ -274,7 +314,7 @@ describe('Manual payment collection', () => {
 
       const b = res.body.booking
       expect(b.payments).toHaveLength(1)
-      expect(b.payments[0].amount).toBe(500) // bookingPayload default totalAmount
+      expect(b.payments[0].amount).toBe(500) // booking totalAmount (flat fee)
       expect(b.payments[0].note).toBe('cash')
       expect(b.payments[0].collectedBy).toBe(s.admin.id)
       expect(b.payments[0].periodLabel).toMatch(/^Week of /)
@@ -285,6 +325,10 @@ describe('Manual payment collection', () => {
       const secondDue = advanceByFrequency(firstDue, 'weekly')
       expect(dateKeyOf(new Date(b.nextDueDate))).toBe(dateKeyOf(secondDue))
       expect(b.lastReminderAt).toBeNull()
+
+      // Ledger entry + emailed receipt (billing v2).
+      expect(res.body.receiptNumber).toMatch(/^SH-RCPT-/)
+      expect(sentMails.map(m => m.type)).toContain('paymentReceipt')
     })
 
     it('pays the referrer on the FIRST payment only', async () => {
@@ -298,7 +342,7 @@ describe('Manual payment collection', () => {
 
       const created = await createBooking(s)
       const id = created.body.newBooking._id
-      await request(app).patch(`/api/booking/${id}/approve`).set('Authorization', s.admin.token)
+      await makeLegacyConfirmed(id)
 
       await request(app)
         .post(`/api/booking/${id}/payments`)
@@ -320,7 +364,7 @@ describe('Manual payment collection', () => {
       const s = await scenario()
       const created = await createBooking(s)
       const id = created.body.newBooking._id
-      await request(app).patch(`/api/booking/${id}/approve`).set('Authorization', s.admin.token)
+      await makeLegacyConfirmed(id)
       const res = await request(app)
         .post(`/api/booking/${id}/payments`)
         .set('Authorization', s.admin.token)
@@ -334,7 +378,7 @@ describe('Manual payment collection', () => {
     async function seedDue(s: Awaited<ReturnType<typeof scenario>>, dueOffsetDays: number) {
       const created = await createBooking(s)
       const id = created.body.newBooking._id
-      await request(app).patch(`/api/booking/${id}/approve`).set('Authorization', s.admin.token)
+      await makeLegacyConfirmed(id)
       const t = todayIST()
       await Booking.updateOne(
         { _id: id },
@@ -395,7 +439,7 @@ describe('Manual payment collection', () => {
       const s = await scenario()
       const created = await createBooking(s)
       const id = created.body.newBooking._id
-      await request(app).patch(`/api/booking/${id}/approve`).set('Authorization', s.admin.token)
+      await makeLegacyConfirmed(id)
       const t = todayIST()
       await Booking.updateOne(
         { _id: id },

@@ -8,6 +8,10 @@ import { mentorRouter } from './Mentor'
 import { mediaRouter } from './Media'
 import { BookingRouter } from './Booking'
 import { BookingLogRouter } from './BookingLog'
+import { SessionRouter } from './Session'
+import { InvoiceRouter } from './Invoice'
+import { SettlementRouter, PaymentRouter } from './Settlement'
+import { AuditRouter } from './Audit'
 import { ReviewRouter } from './Review'
 import { ReferralRouter } from './Referral'
 import { AdRouter } from './Ad'
@@ -29,6 +33,12 @@ routers.use('/api/mentor',mentorRouter)
 routers.use('/api/media',mediaRouter)
 routers.use('/api/booking',BookingRouter);
 routers.use('/api/bookingLog',BookingLogRouter);
+// Billing v2 (SRD): sessions & attendance → invoices → payments → settlements.
+routers.use('/api/sessions',SessionRouter);
+routers.use('/api/invoices',InvoiceRouter);
+routers.use('/api/settlements',SettlementRouter);
+routers.use('/api/payments',PaymentRouter);
+routers.use('/api/audit',AuditRouter);
 routers.use('/api/review',ReviewRouter);
 routers.use('/api/referral',ReferralRouter);
 routers.use('/api/ads',AdRouter);
