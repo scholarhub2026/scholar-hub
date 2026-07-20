@@ -124,10 +124,7 @@ const run = async () => {
   process.exit(0)
 }
 
-// Only auto-run when invoked directly (not when imported by tests).
-if (require.main === module) {
-  run().catch((err) => {
-    console.error('❌ Billing v2 migration failed:', err)
-    process.exit(1)
-  })
-}
+run().catch((err) => {
+  console.error('❌ Billing v2 migration failed:', err)
+  process.exit(1)
+})
