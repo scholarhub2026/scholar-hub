@@ -11,18 +11,30 @@ import 'availability/mentor_availability_screen.dart';
 import 'dashboard/mentor_dashboard_screen.dart';
 import 'earnings/mentor_earnings_screen.dart';
 import 'mentor_bookings_cubit.dart';
+import 'requests/mentor_requests_screen.dart';
 import 'schedule/mentor_schedule_screen.dart';
+import 'sessions/mentor_sessions_screen.dart';
 
 const _mentorDestinations = <NavDestination>[
   NavDestination(
       LucideIcons.layoutDashboard, LucideIcons.layoutDashboard, 'Home'),
+  NavDestination(LucideIcons.inbox, LucideIcons.inbox, 'Requests'),
   NavDestination(
       LucideIcons.calendarCheck, LucideIcons.calendarCheck, 'Schedule'),
+  NavDestination(
+      LucideIcons.clipboardList, LucideIcons.clipboardList, 'Sessions'),
   NavDestination(LucideIcons.wallet, LucideIcons.wallet, 'Earnings'),
   NavDestination(LucideIcons.settings, LucideIcons.settings, 'Settings'),
 ];
 
-const _titles = ['Dashboard', 'My Schedule', 'Earnings', 'Settings'];
+const _titles = [
+  'Dashboard',
+  'Requests',
+  'My Schedule',
+  'Sessions',
+  'Earnings',
+  'Settings',
+];
 
 /// Mentor experience: dashboard, schedule (with session logs), earnings and
 /// settings. The mentor's bookings are loaded once and shared across the first
@@ -55,7 +67,7 @@ class _MentorShellState extends State<MentorShell> {
     final pending = NotificationRouter.instance.pending.value;
     if (pending == null || !mounted) return;
     final target = switch (pending.type) {
-      'booking' => 1, // My Schedule
+      'booking' => 1, // Requests
       'mentor_approved' => 0, // Dashboard
       _ => 0,
     };
@@ -79,7 +91,7 @@ class _MentorShellState extends State<MentorShell> {
           title: Text(_titles[_index]),
           actions: [
             // Manage the weekly availability template from the Schedule tab.
-            if (_index == 1 && mentorId.isNotEmpty)
+            if (_index == 2 && mentorId.isNotEmpty)
               IconButton(
                 tooltip: 'Weekly availability',
                 icon: const Icon(LucideIcons.calendarClock),
@@ -97,7 +109,9 @@ class _MentorShellState extends State<MentorShell> {
           index: _index,
           children: const [
             MentorDashboardScreen(),
+            MentorRequestsScreen(),
             MentorScheduleScreen(),
+            MentorSessionsScreen(),
             MentorEarningsScreen(),
             SettingsScreen(),
           ],

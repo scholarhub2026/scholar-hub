@@ -74,4 +74,14 @@ class AdminBookingsCubit extends Cubit<PagedState<Booking>> {
     await _service.rejectBooking(id, reason: reason);
     await load();
   }
+
+  Future<void> complete(String id) async {
+    await _service.completeBooking(id);
+    await load();
+  }
+
+  Future<void> closeBooking(String id) async {
+    await _service.closeBooking(id);
+    await load();
+  }
 }

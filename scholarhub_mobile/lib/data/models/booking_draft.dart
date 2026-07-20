@@ -7,13 +7,23 @@ enum SessionMode { online, offline }
 /// How a student books a slot: a recurring weekly hold or a one-off session.
 enum ScheduleCadence { recurring, single }
 
-/// How often the class fee is collected (manually, after classes). The
-/// booking's total amount is the fee PER period.
-enum PaymentFrequency { daily, weekly, monthly }
+/// How the class fee is billed (SRD): per session, weekly or monthly. Invoices
+/// are raised after classes from admin-verified sessions. `daily` is retained
+/// only so legacy bookings still parse; the wizard never offers it.
+enum PaymentFrequency { perSession, weekly, monthly, daily }
+
+/// Frequencies offered for NEW bookings (matches the backend).
+const kNewBookingFrequencies = <PaymentFrequency>[
+  PaymentFrequency.perSession,
+  PaymentFrequency.weekly,
+  PaymentFrequency.monthly,
+];
 
 extension PaymentFrequencyX on PaymentFrequency {
   String get apiValue {
     switch (this) {
+      case PaymentFrequency.perSession:
+        return 'per-session';
       case PaymentFrequency.daily:
         return 'daily';
       case PaymentFrequency.weekly:
@@ -25,6 +35,8 @@ extension PaymentFrequencyX on PaymentFrequency {
 
   String get label {
     switch (this) {
+      case PaymentFrequency.perSession:
+        return 'Per session';
       case PaymentFrequency.daily:
         return 'Daily';
       case PaymentFrequency.weekly:
@@ -36,12 +48,27 @@ extension PaymentFrequencyX on PaymentFrequency {
 
   String get perLabel {
     switch (this) {
+      case PaymentFrequency.perSession:
+        return 'session';
       case PaymentFrequency.daily:
         return 'day';
       case PaymentFrequency.weekly:
         return 'week';
       case PaymentFrequency.monthly:
         return 'month';
+    }
+  }
+
+  String get sublabel {
+    switch (this) {
+      case PaymentFrequency.perSession:
+        return 'After each class';
+      case PaymentFrequency.daily:
+        return 'Each day';
+      case PaymentFrequency.weekly:
+        return 'Every week';
+      case PaymentFrequency.monthly:
+        return 'Every month';
     }
   }
 }
@@ -212,19 +239,23 @@ class BookingDraft {
       'selectedSyllabus': syllabus,
       'selectedClass': {
         'class_id': {
+          // `_id` drives server-side pricing (SRD billing engine) — required.
+          '_id': cls.id,
           'class': cls.className,
           'syllabus': cls.syllabus,
         },
         'price': cls.price,
         'subject': subjects
             .map((s) => {
-                  'subject_id': {'name': s.name},
+                  'subject_id': {'_id': s.id, 'name': s.name},
                   'subject_price': s.price,
                 })
             .toList(),
       },
       'bookingType': bookingType!.apiValue,
-      'selectedSubjects': subjects.map((s) => s.name).toList(),
+      // Subject IDs (not names) — the pricing engine resolves rates by id.
+      'selectedSubjects': subjects.map((s) => s.id).toList(),
+      // Advisory only; the server recomputes the fee. Kept for older backends.
       'totalAmount': totalAmount,
       'scheduleCadence': scheduleCadence.apiValue,
       'reservedSlots': selectedSlots.map((s) => s.toPayload()).toList(),

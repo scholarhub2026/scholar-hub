@@ -49,6 +49,11 @@ class _BookingScheduleStepState extends State<BookingScheduleStep> {
   @override
   void initState() {
     super.initState();
+    // `daily` is a legacy frequency the wizard no longer offers — fold it into
+    // monthly so the selector always lands on a valid new-booking option.
+    if (draft.paymentFrequency == PaymentFrequency.daily) {
+      draft.paymentFrequency = PaymentFrequency.monthly;
+    }
     _load();
   }
 
@@ -298,13 +303,26 @@ class _BookingScheduleStepState extends State<BookingScheduleStep> {
     );
   }
 
+  IconData _frequencyIcon(PaymentFrequency f) {
+    switch (f) {
+      case PaymentFrequency.perSession:
+        return LucideIcons.receipt;
+      case PaymentFrequency.weekly:
+        return LucideIcons.repeat;
+      case PaymentFrequency.monthly:
+        return LucideIcons.calendarDays;
+      case PaymentFrequency.daily:
+        return LucideIcons.sun;
+    }
+  }
+
   Widget _frequencySelector() {
-    Widget card(PaymentFrequency f, IconData icon) {
+    Widget card(PaymentFrequency f) {
       final selected = draft.paymentFrequency == f;
+      final isLast = f == kNewBookingFrequencies.last;
       return Expanded(
         child: Padding(
-          padding:
-              EdgeInsets.only(right: f == PaymentFrequency.monthly ? 0 : 8.w),
+          padding: EdgeInsets.only(right: isLast ? 0 : 8.w),
           child: GestureDetector(
             onTap: () {
               draft.paymentFrequency = f;
@@ -313,7 +331,7 @@ class _BookingScheduleStepState extends State<BookingScheduleStep> {
             },
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 160),
-              padding: EdgeInsets.symmetric(vertical: 12.h),
+              padding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 6.w),
               decoration: BoxDecoration(
                 gradient: selected ? AppColors.brandGradient : null,
                 color: selected ? null : AppColors.surface,
@@ -324,16 +342,30 @@ class _BookingScheduleStepState extends State<BookingScheduleStep> {
               ),
               child: Column(
                 children: [
-                  Icon(icon,
+                  Icon(_frequencyIcon(f),
                       size: 18.sp,
                       color: selected ? Colors.white : AppColors.primary),
                   SizedBox(height: 6.h),
                   Text(
                     f.label,
+                    textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 12.sp,
                       fontWeight: FontWeight.w700,
                       color: selected ? Colors.white : AppColors.textPrimary,
+                    ),
+                  ),
+                  SizedBox(height: 2.h),
+                  Text(
+                    f.sublabel,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 9.5.sp,
+                      color: selected
+                          ? Colors.white.withValues(alpha: 0.9)
+                          : AppColors.textMuted,
                     ),
                   ),
                 ],
@@ -346,9 +378,7 @@ class _BookingScheduleStepState extends State<BookingScheduleStep> {
 
     return Row(
       children: [
-        card(PaymentFrequency.daily, LucideIcons.sun),
-        card(PaymentFrequency.weekly, LucideIcons.repeat),
-        card(PaymentFrequency.monthly, LucideIcons.calendarDays),
+        for (final f in kNewBookingFrequencies) card(f),
       ],
     );
   }

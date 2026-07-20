@@ -82,10 +82,6 @@ class _BookingPlanStepState extends State<BookingPlanStep> {
           SizedBox(height: 10.h),
           _subjectList(),
         ],
-        if (draft.totalAmount > 0) ...[
-          SizedBox(height: 24.h),
-          _totalBanner(),
-        ],
       ],
     );
   }
@@ -246,14 +242,6 @@ class _BookingPlanStepState extends State<BookingPlanStep> {
                           ),
                         ),
                       ],
-                    ),
-                  ),
-                  Text(
-                    Formatters.rupeesPlain(c.price),
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 15.sp,
-                      color: AppColors.primary,
                     ),
                   ),
                 ],
@@ -475,51 +463,12 @@ class _BookingPlanStepState extends State<BookingPlanStep> {
                       ),
                     ),
                   ),
-                  Text(
-                    Formatters.rupeesPlain(s.price),
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
-                    ),
-                  ),
                 ],
               ),
             ),
           ),
         );
       }).toList(),
-    );
-  }
-
-  Widget _totalBanner() {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 16.h),
-      decoration: BoxDecoration(
-        color: AppColors.successSoft,
-        borderRadius: BorderRadius.circular(16.r),
-      ),
-      child: Row(
-        children: [
-          const Icon(LucideIcons.wallet, color: AppColors.success),
-          SizedBox(width: 12.w),
-          const Text(
-            'Total Price',
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const Spacer(),
-          Text(
-            Formatters.rupeesPlain(draft.totalAmount),
-            style: TextStyle(
-              fontWeight: FontWeight.w800,
-              fontSize: 20.sp,
-              color: AppColors.success,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

@@ -53,6 +53,39 @@ class ApiConstants {
   static String recordPayment(String bookingId) =>
       '/booking/$bookingId/payments';
 
+  // ---- Billing v2 (SRD): quote → teacher-accept → sessions → invoices → settlements ----
+  static const String bookingQuote = '/booking/quote';
+  static const String mentorRequests = '/booking/mentor/requests';
+  static String teacherAccept(String bookingId) =>
+      '/booking/$bookingId/teacher-accept';
+  static String teacherDecline(String bookingId) =>
+      '/booking/$bookingId/teacher-decline';
+  static String completeBooking(String bookingId) =>
+      '/booking/$bookingId/complete';
+  static String closeBooking(String bookingId) => '/booking/$bookingId/close';
+
+  // Sessions & attendance
+  static const String sessions = '/sessions';
+  static String sessionById(String id) => '/sessions/$id';
+  static String verifySession(String id) => '/sessions/$id/verify';
+  static String rejectSession(String id) => '/sessions/$id/reject';
+
+  // Invoices
+  static const String invoices = '/invoices';
+  static const String myInvoices = '/invoices/mine';
+  static const String mentorInvoices = '/invoices/mentor';
+  static const String generateInvoice = '/invoices/generate';
+  static String invoiceById(String id) => '/invoices/$id';
+  static String voidInvoice(String id) => '/invoices/$id/void';
+  static String invoicePayments(String id) => '/invoices/$id/payments';
+  static String resendReceipt(String id) => '/invoices/$id/resend-receipt';
+
+  // Settlements
+  static const String settlements = '/settlements';
+  static const String mentorSettlements = '/settlements/mentor';
+  static String voidSettlement(String id) => '/settlements/$id/void';
+  static String voidPayment(String id) => '/payments/$id/void';
+
   // Booking session logs
   static String bookingLog(String bookingId) => '/bookingLog/$bookingId';
 

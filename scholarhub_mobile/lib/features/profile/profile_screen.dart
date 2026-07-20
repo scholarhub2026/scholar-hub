@@ -13,6 +13,7 @@ import '../../widgets/app_logo.dart';
 import '../../widgets/network_avatar.dart';
 import '../../widgets/primary_button.dart';
 import '../info/info_content.dart';
+import '../student/invoices/student_invoices_screen.dart';
 import 'update_password_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -85,6 +86,17 @@ class ProfileScreen extends StatelessWidget {
           if (auth.isAuthenticated) ...[
             SizedBox(height: 8.h),
             _sectionLabel('Account'),
+            _MenuTile(
+              icon: LucideIcons.receipt,
+              title: 'My Fees',
+              subtitle: 'Invoices & payment receipts',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const StudentInvoicesScreen(),
+                ),
+              ),
+            ),
             _MenuTile(
               icon: LucideIcons.keyRound,
               title: 'Update Password',

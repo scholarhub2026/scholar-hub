@@ -89,6 +89,66 @@ class _BookingsViewState extends State<_BookingsView> {
     }
   }
 
+  Future<void> _complete(BuildContext context, Booking booking) async {
+    final cubit = context.read<AdminBookingsCubit>();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Mark as completed?'),
+        content: const Text(
+          'This raises the final invoice for any unbilled verified sessions.',
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Complete')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await cubit.complete(booking.id);
+      if (context.mounted) AppSnackbar.success(context, 'Booking completed.');
+    } on ApiException catch (e) {
+      if (context.mounted) AppSnackbar.error(context, e.message);
+    } catch (_) {
+      if (context.mounted) AppSnackbar.error(context, 'Unable to complete.');
+    }
+  }
+
+  Future<void> _close(BuildContext context, Booking booking) async {
+    final cubit = context.read<AdminBookingsCubit>();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Close booking?'),
+        content: const Text(
+          'Only close once every invoice for this booking is settled.',
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Close')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await cubit.closeBooking(booking.id);
+      if (context.mounted) AppSnackbar.success(context, 'Booking closed.');
+    } on ApiException catch (e) {
+      if (context.mounted) AppSnackbar.error(context, e.message);
+    } catch (_) {
+      if (context.mounted) AppSnackbar.error(context, 'Unable to close.');
+    }
+  }
+
   Future<void> _reject(BuildContext context, Booking booking) async {
     final cubit = context.read<AdminBookingsCubit>();
     final controller = TextEditingController();
@@ -211,6 +271,8 @@ class _BookingsViewState extends State<_BookingsView> {
                       onEdit: () => _edit(context, b),
                       onApprove: () => _approve(context, b),
                       onReject: () => _reject(context, b),
+                      onComplete: () => _complete(context, b),
+                      onClose: () => _close(context, b),
                     );
                   },
                 ),
@@ -228,12 +290,16 @@ class _BookingCard extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onApprove;
   final VoidCallback onReject;
+  final VoidCallback onComplete;
+  final VoidCallback onClose;
 
   const _BookingCard({
     required this.booking,
     required this.onEdit,
     required this.onApprove,
     required this.onReject,
+    required this.onComplete,
+    required this.onClose,
   });
 
   @override
@@ -301,7 +367,8 @@ class _BookingCard extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _chip(_cap(booking.bookingStatus), _bookingColor(booking.bookingStatus)),
+              _chip(_statusLabel(booking.bookingStatus),
+                  _bookingColor(booking.bookingStatus)),
               if (booking.bookingStatus == 'confirmed' &&
                   booking.nextDueDate != null)
                 _chip('Due ${Formatters.date(booking.nextDueDate)}',
@@ -311,44 +378,82 @@ class _BookingCard extends StatelessWidget {
             ],
           ),
           SizedBox(height: 12.h),
-          if (booking.bookingStatus == 'pending')
-            Row(
-              children: [
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: onApprove,
-                    icon: Icon(LucideIcons.check, size: 16.sp),
-                    label: const Text('Approve'),
-                  ),
-                ),
-                SizedBox(width: 10.w),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.danger),
-                    onPressed: onReject,
-                    icon: Icon(LucideIcons.x, size: 16.sp),
-                    label: const Text('Reject'),
-                  ),
-                ),
-              ],
-            )
-          else
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: onEdit,
-                icon: Icon(LucideIcons.pencil, size: 16.sp),
-                label: const Text('Edit'),
-              ),
-            ),
+          _actions(),
         ],
       ),
     );
   }
 
-  String _cap(String s) =>
-      s.isEmpty ? '—' : s[0].toUpperCase() + s.substring(1);
+  Widget _actions() {
+    switch (booking.bookingStatus) {
+      case 'pending':
+        return Row(
+          children: [
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: onApprove,
+                icon: Icon(LucideIcons.check, size: 16.sp),
+                label: const Text('Approve'),
+              ),
+            ),
+            SizedBox(width: 10.w),
+            Expanded(
+              child: OutlinedButton.icon(
+                style:
+                    OutlinedButton.styleFrom(foregroundColor: AppColors.danger),
+                onPressed: onReject,
+                icon: Icon(LucideIcons.x, size: 16.sp),
+                label: const Text('Reject'),
+              ),
+            ),
+          ],
+        );
+      case 'confirmed':
+        return Row(
+          children: [
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: onComplete,
+                icon: Icon(LucideIcons.flagTriangleRight, size: 16.sp),
+                label: const Text('Complete'),
+              ),
+            ),
+            SizedBox(width: 10.w),
+            _editButton(expand: false),
+          ],
+        );
+      case 'completed':
+        return Row(
+          children: [
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: onClose,
+                icon: Icon(LucideIcons.lock, size: 16.sp),
+                label: const Text('Close'),
+              ),
+            ),
+            SizedBox(width: 10.w),
+            _editButton(expand: false),
+          ],
+        );
+      default:
+        return _editButton(expand: true);
+    }
+  }
+
+  Widget _editButton({required bool expand}) {
+    final button = OutlinedButton.icon(
+      onPressed: onEdit,
+      icon: Icon(LucideIcons.pencil, size: 16.sp),
+      label: const Text('Edit'),
+    );
+    return expand ? SizedBox(width: double.infinity, child: button) : button;
+  }
+
+  String _statusLabel(String s) {
+    if (s == 'approved') return 'Awaiting teacher';
+    return s.isEmpty ? '—' : s[0].toUpperCase() + s.substring(1);
+  }
 
   Widget _chip(String label, Color color) {
     return Container(
@@ -370,10 +475,14 @@ class _BookingCard extends StatelessWidget {
 
   Color _bookingColor(String s) {
     switch (s) {
+      case 'approved':
+        return AppColors.accent;
       case 'confirmed':
         return AppColors.primary;
       case 'completed':
         return AppColors.success;
+      case 'closed':
+        return AppColors.textSecondary;
       case 'cancelled':
         return AppColors.danger;
       default:

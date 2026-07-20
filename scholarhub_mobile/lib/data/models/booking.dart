@@ -101,6 +101,8 @@ class Booking {
   final String bookingType;
   final String selectedSyllabus;
   final List<String> selectedSubjects;
+  // subject id → display name, parsed from selectedClass.subject (billing v2).
+  final Map<String, String> subjectNames;
   final String message;
   final String remarks;
   final DateTime? createdAt;
@@ -128,6 +130,7 @@ class Booking {
     required this.bookingType,
     required this.selectedSyllabus,
     required this.selectedSubjects,
+    this.subjectNames = const {},
     required this.message,
     required this.remarks,
     required this.createdAt,
@@ -157,6 +160,15 @@ class Booking {
     }
   }
 
+  /// Friendly name for a booked subject id (falls back to the id).
+  String subjectLabel(String subjectId) =>
+      subjectNames[subjectId] ?? subjectId;
+
+  /// Booked subjects as {id, name} for pickers (multiple-subject bookings).
+  List<({String id, String name})> get subjectOptions => selectedSubjects
+      .map((id) => (id: id, name: subjectNames[id] ?? id))
+      .toList();
+
   factory Booking.fromJson(Map<String, dynamic> json) {
     final studentNameField = (json['studentName'] ?? '').toString().trim();
     final studentName = studentNameField.isNotEmpty
@@ -168,6 +180,20 @@ class Booking {
     if (rawSubjects is List) {
       for (final s in rawSubjects) {
         subjects.add(s.toString());
+      }
+    }
+
+    // Map subject id → name from selectedClass.subject (for billing v2 UIs).
+    final subjectNames = <String, String>{};
+    final selectedClass = json['selectedClass'];
+    if (selectedClass is Map && selectedClass['subject'] is List) {
+      for (final s in selectedClass['subject'] as List) {
+        if (s is Map && s['subject_id'] is Map) {
+          final ref = s['subject_id'] as Map;
+          final id = (ref['_id'] ?? '').toString();
+          final name = (ref['name'] ?? '').toString();
+          if (id.isNotEmpty && name.isNotEmpty) subjectNames[id] = name;
+        }
       }
     }
 
@@ -213,6 +239,7 @@ class Booking {
       bookingType: (json['bookingType'] ?? '').toString(),
       selectedSyllabus: (json['selectedSyllabus'] ?? '').toString(),
       selectedSubjects: subjects,
+      subjectNames: subjectNames,
       message: (json['message'] ?? '').toString(),
       remarks: (json['remarks'] ?? '').toString(),
       createdAt: _date(json['createdAt']),
