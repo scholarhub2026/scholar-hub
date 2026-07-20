@@ -56,6 +56,37 @@ describe('Booking flow', () => {
       expect(res.body.newBooking.billingMode).toBe('metered')
     })
 
+    it('falls back to legacy-flat for old clients (no class _id, subject names)', async () => {
+      const { student, mentor, email } = await scenario()
+      // Old-mobile-shaped payload: subject NAMES, no class_id._id, 'daily' freq.
+      const res = await request(app)
+        .post('/api/booking')
+        .set('Authorization', student.token)
+        .send({
+          studentId: student.id,
+          mentorId: mentor.id,
+          studentName: 'Test Student',
+          sessionType: 'online',
+          agreeToTerms: true,
+          selectedSyllabus: 'cbse',
+          bookingType: 'individual',
+          totalAmount: 700,
+          email,
+          phone: '9999999999',
+          selectedSubjects: ['maths'],
+          paymentFrequency: 'daily',
+          selectedClass: {
+            class_id: { class: 'X', syllabus: 'cbse' }, // no _id
+            price: 700,
+            subject: [{ subject_id: { name: 'maths' }, subject_price: 700 }],
+          },
+        })
+      expect(res.status).toBe(201)
+      expect(res.body.newBooking.billingMode).toBe('legacy-flat')
+      expect(res.body.newBooking.totalAmount).toBe(700) // client value trusted
+      expect(res.body.newBooking.paymentFrequency).toBe('daily')
+    })
+
     it('rejects missing required fields', async () => {
       const { student } = await scenario()
       const res = await request(app)

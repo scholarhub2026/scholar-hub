@@ -23,6 +23,7 @@ import {
 } from '../utils/availability'
 import {
   NEW_BOOKING_FREQUENCIES,
+  PAYMENT_FREQUENCIES,
   toUtcMidnight,
   todayIST,
 } from '../utils/paymentSchedule'
@@ -56,64 +57,81 @@ export const createBookingController = async (req, res) => {
 
     req.body.paymentStatus = 'pending'
 
-    // ---- Manual payment collection fields ----
-    // Frequency: optional for backward compat with older clients — default
-    // monthly. New (metered) bookings bill per-session/weekly/monthly; the
-    // legacy 'daily' cadence is rejected here (SRD).
-    if (
-      req.body.paymentFrequency !== undefined &&
-      req.body.paymentFrequency !== '' &&
-      !NEW_BOOKING_FREQUENCIES.includes(req.body.paymentFrequency)
-    ) {
-      return res.status(400).json({
-        message: 'paymentFrequency must be per-session, weekly or monthly',
-      })
-    }
-    if (!req.body.paymentFrequency) req.body.paymentFrequency = 'monthly'
-
-    // ---- Server-side pricing (SRD billing engine) ----
-    // Resolve the rate card now so misconfigured fees fail loudly at booking
-    // time instead of at invoicing. The stored totalAmount is an advisory
-    // estimate (per class / summed ₹ per hour) — real charges come from
-    // verified sessions. Rates are re-resolved & frozen at teacher-accept.
-    const quoteClassId =
-      req.body.selectedClass?.class_id?._id ?? req.body.selectedClass?.class_id
     if (!['full', 'individual', 'multiple'].includes(req.body.bookingType)) {
       return res
         .status(400)
         .json({ message: 'bookingType must be full, individual or multiple' })
     }
-    const quoteSubjects: string[] = Array.isArray(req.body.selectedSubjects)
-      ? req.body.selectedSubjects.map(String)
-      : []
-    if (req.body.bookingType === 'individual' && quoteSubjects.length !== 1) {
-      return res
-        .status(400)
-        .json({ message: 'Select exactly one subject for an individual booking' })
-    }
-    if (req.body.bookingType === 'multiple' && quoteSubjects.length < 1) {
-      return res
-        .status(400)
-        .json({ message: 'Select at least one subject for a multiple booking' })
-    }
-    if (!quoteClassId) {
-      return res.status(400).json({ message: 'selectedClass.class_id is required' })
-    }
-    try {
-      const { estimatedAmount } = await resolveRatesForBooking({
-        mentorId: String(req.body.mentorId),
-        classId: String(quoteClassId),
-        bookingType: req.body.bookingType,
-        selectedSubjectIds: quoteSubjects,
+
+    // Legacy clients (older mobile builds) send subject NAMES and no class
+    // `_id`; server pricing can't resolve them. Detect that by a missing
+    // classId and fall back to the pre-rework flat-fee flow so those clients
+    // keep working during the mobile rollout. New clients (web + updated app)
+    // send the class `_id` and get server-priced 'metered' bookings.
+    // Only a real class `_id` marks a new client. An old-client payload has
+    // `class_id: { class, syllabus }` (no _id) — treat that as legacy.
+    const quoteClassId = req.body.selectedClass?.class_id?._id
+    const isLegacyClient =
+      !quoteClassId || !mongooseIdValidator(quoteClassId)
+
+    // ---- Frequency ---- legacy clients may still send 'daily'; new bookings
+    // are restricted to per-session/weekly/monthly (SRD).
+    const allowedFreqs = isLegacyClient
+      ? PAYMENT_FREQUENCIES
+      : NEW_BOOKING_FREQUENCIES
+    if (
+      req.body.paymentFrequency !== undefined &&
+      req.body.paymentFrequency !== '' &&
+      !allowedFreqs.includes(req.body.paymentFrequency)
+    ) {
+      return res.status(400).json({
+        message: isLegacyClient
+          ? 'paymentFrequency must be daily, weekly or monthly'
+          : 'paymentFrequency must be per-session, weekly or monthly',
       })
-      req.body.totalAmount = estimatedAmount
-    } catch (err) {
-      if (err instanceof PricingError) {
-        return res.status(422).json({ message: err.message, code: err.code })
-      }
-      throw err
     }
-    req.body.billingMode = 'metered'
+    if (!req.body.paymentFrequency) req.body.paymentFrequency = 'monthly'
+
+    if (isLegacyClient) {
+      // Trust the client-sent flat fee (old behaviour); no server pricing.
+      req.body.billingMode = 'legacy-flat'
+      const amt = Number(req.body.totalAmount)
+      req.body.totalAmount = Number.isFinite(amt) && amt >= 0 ? amt : 0
+    } else {
+      // ---- Server-side pricing (SRD billing engine) ----
+      // Resolve the rate card now so misconfigured fees fail loudly at booking
+      // time instead of at invoicing. The stored totalAmount is an advisory
+      // estimate; real charges come from verified sessions. Rates are
+      // re-resolved & frozen at teacher-accept.
+      const quoteSubjects: string[] = Array.isArray(req.body.selectedSubjects)
+        ? req.body.selectedSubjects.map(String)
+        : []
+      if (req.body.bookingType === 'individual' && quoteSubjects.length !== 1) {
+        return res.status(400).json({
+          message: 'Select exactly one subject for an individual booking',
+        })
+      }
+      if (req.body.bookingType === 'multiple' && quoteSubjects.length < 1) {
+        return res.status(400).json({
+          message: 'Select at least one subject for a multiple booking',
+        })
+      }
+      try {
+        const { estimatedAmount } = await resolveRatesForBooking({
+          mentorId: String(req.body.mentorId),
+          classId: String(quoteClassId),
+          bookingType: req.body.bookingType,
+          selectedSubjectIds: quoteSubjects,
+        })
+        req.body.totalAmount = estimatedAmount
+      } catch (err) {
+        if (err instanceof PricingError) {
+          return res.status(422).json({ message: err.message, code: err.code })
+        }
+        throw err
+      }
+      req.body.billingMode = 'metered'
+    }
 
     if (req.body.classStartDate) {
       const raw = String(req.body.classStartDate)
