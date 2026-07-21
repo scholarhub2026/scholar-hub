@@ -1,5 +1,5 @@
 import {Router } from 'express'
-import { cancelBookingController, createBookingController, deleteBookingController, generatePaymentLink, getBookingsForAdmin, getMentorEarningsController, updateBookingController } from '../controllers/Booking';
+import { adminCreateBookingController, cancelBookingController, createBookingController, deleteBookingController, generatePaymentLink, getBookingsForAdmin, getMentorEarningsController, updateBookingController } from '../controllers/Booking';
 import { approveBookingController, getDuePaymentsController, recordPaymentController, rejectBookingController } from '../controllers/BookingPayments';
 import { quoteBookingController } from '../controllers/Pricing';
 import {
@@ -22,6 +22,9 @@ export const BookingRouter = Router();
 BookingRouter.post('/', requireAuth, requireRole('STUDENT'), createBookingController);
 // Server-side pricing preview for the booking wizard (SRD billing engine).
 BookingRouter.post('/quote', requireAuth, requireRole('STUDENT'), quoteBookingController);
+// Admin creates a confirmed flat-fee booking from an enquiry (must sit above
+// the '/:studentId' catch-all).
+BookingRouter.post('/admin', requireAuth, requireRole('ADMIN'), adminCreateBookingController);
 BookingRouter.get('/mentor/:mentorId/earnings', requireAuth, requireRole('TUTOR','ADMIN'), getMentorEarningsController);
 // Manual payment collection (admin). NOTE: '/payments/due' MUST stay above the
 // 'GET /:studentId' catch-all or it would be swallowed as a studentId.

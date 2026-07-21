@@ -36,6 +36,10 @@ import {
   type PaymentReceiptPayload,
   type SettlementRecordedPayload,
 } from "../templates/receiptTemplates";
+import {
+  classEnquiryTemplate,
+  type ClassEnquiryPayload,
+} from "../templates/enquiryTemplates";
 
 dotenv.config();
 
@@ -60,7 +64,8 @@ export type MailType =
   | "teacherDeclined"
   | "invoiceGenerated"
   | "paymentReceipt"
-  | "settlementRecorded";
+  | "settlementRecorded"
+  | "classEnquiry";
 type UserPayload = { email: string; pass: string };
 type MailPayload =
   | string
@@ -76,7 +81,8 @@ type MailPayload =
   | TeacherDeclinedPayload
   | InvoiceGeneratedPayload
   | PaymentReceiptPayload
-  | SettlementRecordedPayload;
+  | SettlementRecordedPayload
+  | ClassEnquiryPayload;
 
 // --- Providers. HTTP-API ones (Brevo, SendGrid) work on hosts that block
 // outbound SMTP ports (Railway, Render, …); plain SMTP is kept for local/other
@@ -247,6 +253,12 @@ const getHtmlContent = (type: MailType, payload: MailPayload): string => {
         throw new Error("Invalid settlementRecorded payload");
       }
       return settlementRecordedTemplate(payload as SettlementRecordedPayload);
+
+    case "classEnquiry":
+      if (typeof payload !== "object" || !("enquiryType" in payload)) {
+        throw new Error("Invalid classEnquiry payload");
+      }
+      return classEnquiryTemplate(payload as ClassEnquiryPayload);
 
     default:
       throw new Error("Unsupported mail type");

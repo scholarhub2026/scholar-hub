@@ -22,13 +22,17 @@ import {
   singleClaimKey,
 } from '../utils/availability'
 import {
+  advanceByFrequency,
+  formatDueDate,
   NEW_BOOKING_FREQUENCIES,
   PAYMENT_FREQUENCIES,
   toUtcMidnight,
   todayIST,
+  type PaymentFrequency,
 } from '../utils/paymentSchedule'
 import { PricingError } from '../utils/pricingEngine'
 import { resolveRatesForBooking } from '../utils/rateResolution'
+import Enquiry from '../models/Enquiry'
 
 export const createBookingController = async (req, res) => {
   try {
@@ -398,6 +402,176 @@ export const createBookingController = async (req, res) => {
       .json({ message: 'Server Error', error: error.message })
   }
 }
+
+/**
+ * POST /api/booking/admin  (ADMIN)
+ * Admin creates a CONFIRMED, flat-fee (legacy-flat) booking after an enquiry is
+ * confirmed offline. The admin sets the fee, frequency and class start date; the
+ * booking flows into the manual collection (Payments "Legacy" tab, mark-paid,
+ * reminders). If `enquiryId` is given, that enquiry is marked converted.
+ */
+export const adminCreateBookingController = catchAsync(async (req, res) => {
+  const body = req.body ?? {}
+
+  const validation = await validateRequiredFeilds(body, [
+    'studentName',
+    'email',
+    'phone',
+    'mentorId',
+    'totalAmount',
+    'paymentFrequency',
+    'classStartDate',
+  ])
+  if (validation) {
+    return res
+      .status(400)
+      .json({ message: 'Please provide all required fields', error: validation })
+  }
+  if (!mongooseIdValidator(body.mentorId)) {
+    return res.status(400).json({ message: 'Valid mentorId is required' })
+  }
+
+  const mentor = await Auth.findOne({ _id: body.mentorId, role: 'TUTOR' }).select(
+    'firstName lastName email'
+  )
+  if (!mentor) {
+    return res.status(404).json({ message: 'Mentor not found' })
+  }
+
+  // Flat manual collection only supports calendar cadences.
+  const freq: PaymentFrequency = body.paymentFrequency
+  if (!['weekly', 'monthly', 'daily'].includes(freq)) {
+    return res
+      .status(400)
+      .json({ message: 'paymentFrequency must be weekly or monthly' })
+  }
+  const amount = Number(body.totalAmount)
+  if (!Number.isFinite(amount) || amount < 0) {
+    return res.status(400).json({ message: 'Invalid totalAmount' })
+  }
+
+  const rawStart = String(body.classStartDate)
+  const iso = /^\d{4}-\d{2}-\d{2}$/.test(rawStart)
+    ? `${rawStart}T00:00:00.000Z`
+    : rawStart
+  const parsedStart = new Date(iso)
+  if (isNaN(parsedStart.getTime())) {
+    return res.status(400).json({ message: 'Invalid classStartDate' })
+  }
+  const classStartDate = toUtcMidnight(parsedStart)
+
+  // Reuse the create-booking behaviour: match an existing student by email, or
+  // auto-create a STUDENT account and email the temp credentials.
+  const email = String(body.email).toLowerCase().trim()
+  let studentId = await Auth.findOne({ email }).then((u) => u?._id)
+  if (!studentId) {
+    const tempPassword = await generatePass()
+    await sendMail(email, 'Your Login credentials', 'user', {
+      email,
+      pass: tempPassword,
+    }).catch((err) => console.error('[mail] student credentials failed:', err.message))
+    const created = await Auth.create({
+      firstName: body.studentName,
+      email,
+      phone: body.phone,
+      role: 'STUDENT',
+      password: await encryptPassword(tempPassword),
+    })
+    studentId = created._id
+  }
+
+  const nextDueDate = advanceByFrequency(classStartDate, freq)
+
+  const booking = new Booking({
+    studentId,
+    mentorId: body.mentorId,
+    studentName: String(body.studentName).trim(),
+    email,
+    phone: String(body.phone).trim(),
+    sessionType: body.sessionType ?? 'recurring',
+    selectedSyllabus: body.selectedSyllabus ?? '',
+    selectedClass: body.selectedClass ?? {
+      // class/syllabus are required subfields — fall back to non-empty labels
+      // so a class-less enquiry (e.g. a bare demo) still saves.
+      class_id: {
+        _id: body.classId || undefined,
+        class: body.className || 'Class',
+        syllabus: body.selectedSyllabus || 'General',
+      },
+      price: amount,
+      subject: Array.isArray(body.subjects)
+        ? body.subjects.map((s: any) => ({
+            subject_id: { _id: s?.subjectId || undefined, name: s?.name ?? '' },
+            subject_price: Number(s?.price) || 0,
+          }))
+        : [],
+    },
+    bookingType: ['full', 'individual', 'multiple', 'demo', 'subject-wise'].includes(
+      body.bookingType
+    )
+      ? body.bookingType
+      : 'subject-wise',
+    selectedSubjects: Array.isArray(body.subjects)
+      ? body.subjects.map((s: any) => String(s?.name ?? '')).filter(Boolean)
+      : [],
+    totalAmount: amount,
+    agreeToTerms: true,
+    billingMode: 'legacy-flat',
+    bookingStatus: 'confirmed',
+    paymentStatus: 'pending',
+    paymentFrequency: freq,
+    classStartDate,
+    nextDueDate,
+    approvedAt: new Date(),
+    remarks: body.remarks ?? '',
+  })
+  await booking.save()
+
+  // Convert the source enquiry, if any.
+  if (body.enquiryId && mongooseIdValidator(body.enquiryId)) {
+    await Enquiry.findByIdAndUpdate(body.enquiryId, {
+      status: 'converted',
+      bookingId: booking._id,
+    }).catch((err) => console.error('[enquiry] convert failed:', err.message))
+  }
+
+  // Notify student + mentor that the booking is confirmed (best-effort).
+  const mentorName =
+    `${mentor.firstName ?? ''} ${mentor.lastName ?? ''}`.trim() || 'your mentor'
+  const startLabel = formatDueDate(classStartDate)
+  const dueLabel = formatDueDate(nextDueDate)
+  sendMail(email, 'Your classes are confirmed — Scholar Hub', 'bookingApproved', {
+    studentName: booking.studentName,
+    mentorName,
+    amount,
+    frequency: freq,
+    startDate: startLabel,
+    firstDueDate: dueLabel,
+  }).catch((err) => console.error('[mail] admin-create student failed:', err.message))
+  if (mentor.email) {
+    sendMail(mentor.email, 'New confirmed student — Scholar Hub', 'bookingApprovedMentor', {
+      mentorName,
+      studentName: booking.studentName,
+      detail: [booking.selectedClass?.class_id?.class, booking.selectedSubjects.join(', ')]
+        .filter(Boolean)
+        .join(' — ') || 'New booking',
+      startDate: startLabel,
+    }).catch((err) => console.error('[mail] admin-create mentor failed:', err.message))
+  }
+  const idStr = booking._id.toString()
+  sendPushToUser(studentId?.toString() ?? '', {
+    title: 'Classes confirmed 🎉',
+    body: `Your classes with ${mentorName} start ${startLabel}.`,
+    data: { type: 'booking_approved', bookingId: idStr },
+  }).catch((err) => console.error('[push] admin-create student failed:', err.message))
+  sendPushToUser(mentor._id.toString(), {
+    title: 'New confirmed student',
+    body: `${booking.studentName}'s classes start ${startLabel}.`,
+    data: { type: 'booking', bookingId: idStr },
+  }).catch((err) => console.error('[push] admin-create mentor failed:', err.message))
+
+  return res.status(201).json({ message: 'Booking created', booking })
+})
 
 export const updateBookingController = async (req, res) => {
   try {

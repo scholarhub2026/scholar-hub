@@ -12,6 +12,7 @@ import { SessionRouter } from './Session'
 import { InvoiceRouter } from './Invoice'
 import { SettlementRouter, PaymentRouter } from './Settlement'
 import { AuditRouter } from './Audit'
+import { EnquiryRouter } from './Enquiry'
 import { ReviewRouter } from './Review'
 import { ReferralRouter } from './Referral'
 import { AdRouter } from './Ad'
@@ -39,6 +40,8 @@ routers.use('/api/invoices',InvoiceRouter);
 routers.use('/api/settlements',SettlementRouter);
 routers.use('/api/payments',PaymentRouter);
 routers.use('/api/audit',AuditRouter);
+// Student class enquiries (the lead front-door that replaces self-service booking).
+routers.use('/api/enquiry',EnquiryRouter);
 routers.use('/api/review',ReviewRouter);
 routers.use('/api/referral',ReferralRouter);
 routers.use('/api/ads',AdRouter);

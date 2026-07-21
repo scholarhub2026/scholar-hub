@@ -38,7 +38,7 @@ export interface IBooking extends Document {
     }[];
   };
 
-  bookingType: 'full' | 'individual' | 'multiple' | ''
+  bookingType: 'full' | 'individual' | 'multiple' | 'demo' | 'subject-wise' | ''
   selectedSubjects: string[]
   totalAmount: number
   paymentType: 'credit-card' | 'paypal' | 'upi' | 'cash' | 'bank-transfer' | ''
@@ -190,7 +190,9 @@ const BookingSchema = new mongoose.Schema<IBooking>(
 
     bookingType: {
       type: String,
-      enum: ['full', 'individual', 'multiple'],
+      // 'demo'/'subject-wise' are used by admin-created (legacy-flat) bookings
+      // from the enquiry flow; they never hit the metered pricing engine.
+      enum: ['full', 'individual', 'multiple', 'demo', 'subject-wise'],
       default: '',
     },
     selectedSubjects: {

@@ -17,6 +17,7 @@ export type MailType =
   | 'invoiceGenerated'
   | 'paymentReceipt'
   | 'settlementRecorded'
+  | 'classEnquiry'
 
 export const sentMails: Array<{ to: string; subject: string; type: MailType }> = []
 
