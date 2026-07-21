@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'app.dart';
+import 'core/di/service_locator.dart';
+import 'core/storage/local_storage_service.dart';
 import 'data/services/push_service.dart';
 import 'firebase_options.dart';
 import 'state/auth/auth_cubit.dart';
@@ -16,6 +18,11 @@ Future<void> main() async {
       statusBarIconBrightness: Brightness.dark,
     ),
   );
+
+  // Load persisted tokens (secure storage) + wire dependencies before anything
+  // makes a request.
+  await LocalStorageService.instance.load();
+  await setupServiceLocator();
 
   // Push notifications are optional at boot: if Firebase native config is
   // missing the app still launches, just without notifications.

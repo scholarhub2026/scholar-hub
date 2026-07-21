@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import 'core/theme/app_theme.dart';
 import 'data/services/notification_router.dart';
+import 'flavors.dart';
 import 'features/admin/admin_shell.dart';
 import 'features/mentor/mentor_shell.dart';
 import 'features/shell/app_shell.dart';
@@ -23,7 +24,7 @@ class ScholarHubApp extends StatelessWidget {
       minTextAdapt: true,
       splitScreenMode: true,
       builder: (context, child) => MaterialApp(
-        title: 'Scholar Hub',
+        title: F.title,
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light(),
         // Root navigator so a notification tap can navigate from anywhere,

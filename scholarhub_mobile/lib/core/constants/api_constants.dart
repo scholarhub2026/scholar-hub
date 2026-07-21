@@ -1,10 +1,11 @@
-/// Central place for backend endpoints. The base URL points at the deployed
-/// Scholar Hub backend (Railway). Override [baseUrl] for local development.
+import '../../flavors.dart';
+
+/// Central place for backend endpoints. The base URL is flavor-driven (see
+/// [F.baseUrl]) — dev and prod point at their respective Railway backends.
 class ApiConstants {
   ApiConstants._();
 
-  static const String baseUrl =
-      'https://backend-production-59ab.up.railway.app/api';
+  static String get baseUrl => F.baseUrl;
 
   // Razorpay test key (from the web frontend).
   static const String razorpayKeyId = 'rzp_test_RNsg28RlXtLY7i';
@@ -12,6 +13,7 @@ class ApiConstants {
   // Auth
   static const String login = '/auth/login';
   static const String signup = '/auth/signin';
+  static const String refresh = '/auth/refresh';
   static const String verifyToken = '/auth/verify-token';
   static String verifyOtp(String id) => '/auth/verify/$id';
   static String updateUser(String id) => '/auth/$id';

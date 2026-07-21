@@ -2,40 +2,44 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/di/service_locator.dart';
 import '../../core/network/api_client.dart';
+import '../../core/storage/local_storage_service.dart';
 import '../../data/models/app_user.dart';
-import '../../data/services/auth_service.dart';
+import '../../data/repositories/auth_repository.dart';
 import '../../data/services/push_service.dart';
 import 'auth_state.dart';
 
-/// Holds the session: persists the JWT + user, restores it on launch, and
-/// exposes login/signup/logout to the UI. The replacement for the old
-/// `provider`-based `AuthProvider` — now a `flutter_bloc` Cubit.
+/// Holds the session: persists the JWT (secure storage) + user, restores it on
+/// launch, and exposes login/signup/logout. Tokens are stored via
+/// [LocalStorageService]; a failed refresh (broadcast on
+/// [ApiClient.onSessionExpired]) tears the session down automatically.
 class AuthCubit extends Cubit<AuthState> {
-  static const _userKey = 'sh_user';
+  final AuthRepository _service;
+  final LocalStorageService _storage;
+  StreamSubscription<void>? _sessionExpiredSub;
 
-  final AuthService _service;
-
-  AuthCubit({AuthService? service})
-      : _service = service ?? AuthService(),
-        super(const AuthState());
+  AuthCubit({AuthRepository? service, LocalStorageService? storage})
+      : _service = service ?? sl<AuthRepository>(),
+        _storage = storage ?? LocalStorageService.instance,
+        super(const AuthState()) {
+    // A failed token refresh means the session is dead — sign out.
+    _sessionExpiredSub =
+        ApiClient.instance.onSessionExpired.listen((_) => _forceLogout());
+  }
 
   AppUser? get user => state.user;
   bool get isAuthenticated => state.isAuthenticated;
 
   Future<void> bootstrap() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString(ApiClient.tokenKey);
-    final userJson = prefs.getString(_userKey);
-
-    if (token == null || token.isEmpty) {
+    if (!_storage.hasSession) {
       emit(const AuthState(status: AuthStatus.unauthenticated));
       return;
     }
 
     // Optimistically restore the cached user for instant UI.
+    final userJson = await _storage.getUserJson();
     if (userJson != null) {
       try {
         final cached =
@@ -44,28 +48,24 @@ class AuthCubit extends Cubit<AuthState> {
       } catch (_) {}
     }
 
-    // Re-validate in the background.
+    // Re-validate in the background (the client auto-refreshes on 401 first).
     try {
       final fresh = await _service.verifyToken();
       if (fresh != null) {
         emit(AuthState(status: AuthStatus.authenticated, user: fresh));
-        await prefs.setString(_userKey, jsonEncode(fresh.toJson()));
+        await _storage.setUserJson(jsonEncode(fresh.toJson()));
       } else {
-        // A null result is a definitive server rejection (401/403 resolves to a
-        // non-OK response, not a thrown error), so the token is dead — drop the
-        // session even if we optimistically restored a cached user above.
+        // Definitive rejection (a refresh already failed if it could) — drop it.
         await _clear();
         emit(const AuthState(status: AuthStatus.unauthenticated));
       }
     } catch (_) {
-      // Thrown error == transient network hiccup: keep the cached session if we
-      // have one, otherwise fall back to signed-out.
+      // Transient network hiccup: keep the cached session if we have one.
       if (state.user == null) {
         emit(const AuthState(status: AuthStatus.unauthenticated));
       }
     }
 
-    // Register this device for push once we know who's signed in.
     if (state.status == AuthStatus.authenticated && state.user != null) {
       unawaited(PushService.instance.syncToken(state.user!.id));
     }
@@ -76,7 +76,7 @@ class AuthCubit extends Cubit<AuthState> {
     required String password,
   }) async {
     final result = await _service.login(email: email, password: password);
-    await _persist(result.token, result.user);
+    await _persist(result);
     unawaited(PushService.instance.syncToken(result.user.id));
     return result.user;
   }
@@ -121,8 +121,7 @@ class AuthCubit extends Cubit<AuthState> {
     try {
       final fresh = await _service.verifyToken();
       if (fresh != null) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(_userKey, jsonEncode(fresh.toJson()));
+        await _storage.setUserJson(jsonEncode(fresh.toJson()));
         emit(AuthState(status: AuthStatus.authenticated, user: fresh));
       }
     } catch (_) {
@@ -139,16 +138,26 @@ class AuthCubit extends Cubit<AuthState> {
     emit(const AuthState(status: AuthStatus.unauthenticated));
   }
 
-  Future<void> _persist(String token, AppUser user) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(ApiClient.tokenKey, token);
-    await prefs.setString(_userKey, jsonEncode(user.toJson()));
-    emit(AuthState(status: AuthStatus.authenticated, user: user));
+  /// Session invalidated out-of-band (refresh failed) — clear + emit signed-out.
+  Future<void> _forceLogout() async {
+    if (state.status == AuthStatus.unauthenticated) return;
+    await logout();
   }
 
-  Future<void> _clear() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(ApiClient.tokenKey);
-    await prefs.remove(_userKey);
+  Future<void> _persist(AuthResult result) async {
+    await _storage.setTokens(
+      access: result.token,
+      refresh: result.refreshToken,
+    );
+    await _storage.setUserJson(jsonEncode(result.user.toJson()));
+    emit(AuthState(status: AuthStatus.authenticated, user: result.user));
+  }
+
+  Future<void> _clear() => _storage.clearSession();
+
+  @override
+  Future<void> close() {
+    _sessionExpiredSub?.cancel();
+    return super.close();
   }
 }

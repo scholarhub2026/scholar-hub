@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../core/di/service_locator.dart';
 import '../../data/models/mentor.dart';
 import '../../data/services/mentor_service.dart';
 import '../../state/view_status.dart';
@@ -84,7 +85,7 @@ class MentorsCubit extends Cubit<MentorsState> {
   final MentorService _service;
 
   MentorsCubit({MentorService? service})
-      : _service = service ?? MentorService(),
+      : _service = service ?? sl<MentorService>(),
         super(const MentorsState());
 
   Future<void> load() async {

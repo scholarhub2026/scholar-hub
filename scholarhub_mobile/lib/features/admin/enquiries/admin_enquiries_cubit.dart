@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/di/service_locator.dart';
 import '../../../data/models/enquiry.dart';
 import '../../../data/services/enquiry_service.dart';
 import '../../../state/view_status.dart';
@@ -83,7 +84,7 @@ class AdminEnquiriesCubit extends Cubit<AdminEnquiriesState> {
   static const _limit = 20;
 
   AdminEnquiriesCubit({EnquiryService? service})
-      : _service = service ?? EnquiryService(),
+      : _service = service ?? sl<EnquiryService>(),
         super(const AdminEnquiriesState());
 
   Future<void> load({String? scope}) async {

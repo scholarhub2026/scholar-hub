@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
+import '../../core/di/service_locator.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/booking_draft.dart';
 import '../../data/models/mentor.dart';
@@ -30,7 +31,7 @@ class BookingScreen extends StatefulWidget {
 class _BookingScreenState extends State<BookingScreen> {
   static const _fallbackStudentId = '000000000000000000000000';
 
-  final BookingService _service = BookingService();
+  final BookingService _service = sl<BookingService>();
   late final BookingDraft _draft = BookingDraft(widget.mentor);
 
   int _step = 0;

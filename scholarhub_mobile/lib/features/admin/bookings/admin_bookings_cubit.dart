@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/di/service_locator.dart';
 import '../../../data/models/booking.dart';
 import '../../../data/services/booking_service.dart';
 import '../../../state/paged_state.dart';
@@ -12,7 +13,7 @@ class AdminBookingsCubit extends Cubit<PagedState<Booking>> {
   String _search = '';
 
   AdminBookingsCubit(this.userId, {BookingService? service})
-      : _service = service ?? BookingService(),
+      : _service = service ?? sl<BookingService>(),
         super(const PagedState<Booking>());
 
   String get search => _search;

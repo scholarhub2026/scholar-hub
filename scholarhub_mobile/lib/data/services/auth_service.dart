@@ -1,27 +1,15 @@
 import '../../core/constants/api_constants.dart';
 import '../../core/network/api_client.dart';
 import '../models/app_user.dart';
+import '../repositories/auth_repository.dart';
 
-class AuthResult {
-  final String token;
-  final AppUser user;
-  const AuthResult({required this.token, required this.user});
-}
+// AuthResult / SignupResult now live in the repository contract.
+export '../repositories/auth_repository.dart' show AuthResult, SignupResult;
 
-class SignupResult {
-  final String userId;
-  final String token;
-  final String role;
-  const SignupResult({
-    required this.userId,
-    required this.token,
-    required this.role,
-  });
-}
-
-class AuthService {
+class AuthService implements AuthRepository {
   final ApiClient _api = ApiClient.instance;
 
+  @override
   Future<AuthResult> login({
     required String email,
     required String password,
@@ -29,6 +17,7 @@ class AuthService {
     final res = await _api.post(
       ApiConstants.login,
       data: {'email': email, 'password': password},
+      requiresAuth: false,
     );
     if (!ApiClient.isOk(res)) {
       throw ApiException(ApiClient.messageFor(res, 'Unable to sign in.'));
@@ -36,11 +25,13 @@ class AuthService {
     final data = res.data as Map<String, dynamic>;
     return AuthResult(
       token: (data['token'] ?? '').toString(),
+      refreshToken: data['refreshToken']?.toString(),
       user: AppUser.fromJson((data['user'] as Map).cast<String, dynamic>()),
     );
   }
 
   /// Registers a STUDENT account. Backend issues an OTP to verify the email.
+  @override
   Future<SignupResult> signup({
     required String firstName,
     required String lastName,
@@ -57,6 +48,7 @@ class AuthService {
         'phoneNumber': phoneNumber,
         'password': password,
       },
+      requiresAuth: false,
     );
     if (!ApiClient.isOk(res)) {
       throw ApiException(
@@ -70,18 +62,19 @@ class AuthService {
     );
   }
 
+  @override
   Future<void> verifyOtp({required String userId, required String otp}) async {
     final res = await _api.post(
       ApiConstants.verifyOtp(userId),
       data: {'otp': otp},
+      requiresAuth: false,
     );
     if (!ApiClient.isOk(res)) {
-      throw ApiException(
-          ApiClient.messageFor(res, 'Invalid or expired OTP.'));
+      throw ApiException(ApiClient.messageFor(res, 'Invalid or expired OTP.'));
     }
   }
 
-  /// Validates a stored token and returns the latest user payload.
+  @override
   Future<AppUser?> verifyToken() async {
     final res = await _api.get(ApiConstants.verifyToken);
     if (!ApiClient.isOk(res)) return null;
@@ -92,6 +85,7 @@ class AuthService {
     return null;
   }
 
+  @override
   Future<void> updatePassword({
     required String userId,
     required String password,
