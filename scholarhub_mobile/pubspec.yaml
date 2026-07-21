@@ -51,6 +51,13 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.1
 
+# lucide_icons 0.257.0 is abandoned and extends the now-final IconData (breaks
+# on Flutter 3.44+). Point at a vendored, patched copy with identical icon names
+# (plain IconData, Dart 3 SDK) so no app code changes are needed.
+dependency_overrides:
+  lucide_icons:
+    path: third_party/lucide_icons
+
 flutter:
   uses-material-design: true
 
