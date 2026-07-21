@@ -13,6 +13,7 @@ import 'ads/admin_ads_screen.dart';
 import 'bookings/admin_bookings_screen.dart';
 import 'classes/admin_classes_screen.dart';
 import 'dashboard/admin_dashboard_screen.dart';
+import 'enquiries/admin_enquiries_screen.dart';
 import 'inquiries/admin_inquiries_screen.dart';
 import 'mentors/admin_mentors_screen.dart';
 import 'payments/admin_payments_screen.dart';
@@ -29,6 +30,7 @@ class _AdminDest {
 const _destinations = <_AdminDest>[
   _AdminDest(LucideIcons.layoutDashboard, 'Dashboard'),
   _AdminDest(LucideIcons.inbox, 'Enquiries'),
+  _AdminDest(LucideIcons.messageSquare, 'Messages'),
   _AdminDest(LucideIcons.users, 'Mentors'),
   _AdminDest(LucideIcons.graduationCap, 'Classes'),
   _AdminDest(LucideIcons.bookOpen, 'Subjects'),
@@ -70,10 +72,11 @@ class _AdminShellState extends State<AdminShell> {
     final pending = NotificationRouter.instance.pending.value;
     if (pending == null || !mounted) return;
     final target = switch (pending.type) {
-      'booking' => 5, // Bookings
-      'payment_due' => 7, // Payments
-      'inquiry' => 1, // Enquiries
-      'mentor_application' || 'mentor_pending' => 2, // Mentors
+      'booking' => 6, // Bookings
+      'payment_due' => 8, // Payments
+      'enquiry' => 1, // Enquiries (class leads)
+      'inquiry' => 2, // Messages (contact form)
+      'mentor_application' || 'mentor_pending' => 3, // Mentors
       _ => 0,
     };
     if (target != _index) setState(() => _index = target);
@@ -103,6 +106,7 @@ class _AdminShellState extends State<AdminShell> {
         index: _index,
         children: const [
           AdminDashboardScreen(),
+          AdminEnquiriesScreen(),
           AdminInquiriesScreen(),
           AdminMentorsScreen(),
           AdminClassesScreen(),

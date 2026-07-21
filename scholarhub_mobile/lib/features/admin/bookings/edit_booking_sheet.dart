@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/formatters.dart';
 import '../../../data/models/booking.dart';
 import '../../../widgets/app_text_field.dart';
 import '../../../widgets/primary_button.dart';
@@ -10,6 +12,12 @@ import '../../../widgets/primary_button.dart';
 const _paymentStatuses = ['pending', 'completed', 'failed'];
 const _bookingStatuses = ['pending', 'confirmed', 'completed', 'cancelled'];
 const _frequencies = ['daily', 'weekly', 'monthly'];
+
+/// "YYYY-MM-DD" from the picked local calendar day (no timezone shift).
+String _ymd(DateTime d) {
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${d.year}-${two(d.month)}-${two(d.day)}';
+}
 
 /// Edit a booking's payment/booking status, amount and remarks. Returns the
 /// update payload (or null if dismissed).
@@ -44,6 +52,7 @@ class _EditBookingSheetState extends State<_EditBookingSheet> {
   late String _frequency;
   late final TextEditingController _amount;
   late final TextEditingController _remarks;
+  DateTime? _classStartDate;
 
   @override
   void initState() {
@@ -60,6 +69,18 @@ class _EditBookingSheetState extends State<_EditBookingSheet> {
     _amount = TextEditingController(
         text: widget.booking.totalAmount.toStringAsFixed(0));
     _remarks = TextEditingController(text: widget.booking.remarks);
+    _classStartDate = widget.booking.classStartDate;
+  }
+
+  Future<void> _pickStartDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _classStartDate ?? now,
+      firstDate: DateTime(now.year - 2),
+      lastDate: DateTime(now.year + 2),
+    );
+    if (picked != null) setState(() => _classStartDate = picked);
   }
 
   @override
@@ -76,6 +97,7 @@ class _EditBookingSheetState extends State<_EditBookingSheet> {
       'paymentFrequency': _frequency,
       'totalAmount': num.tryParse(_amount.text.trim()) ?? 0,
       'remarks': _remarks.text.trim(),
+      if (_classStartDate != null) 'classStartDate': _ymd(_classStartDate!),
     });
   }
 
@@ -134,6 +156,51 @@ class _EditBookingSheetState extends State<_EditBookingSheet> {
               value: _frequency,
               options: _frequencies,
               onChanged: (v) => setState(() => _frequency = v),
+            ),
+            SizedBox(height: 16.h),
+            Text(
+              'Class start date',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 13.5.sp,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            SizedBox(height: 8.h),
+            InkWell(
+              borderRadius: BorderRadius.circular(16.r),
+              onTap: _pickStartDate,
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceMuted,
+                  borderRadius: BorderRadius.circular(16.r),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Row(
+                  children: [
+                    Icon(LucideIcons.calendar,
+                        size: 18.sp, color: AppColors.textMuted),
+                    SizedBox(width: 12.w),
+                    Expanded(
+                      child: Text(
+                        _classStartDate == null
+                            ? 'Select date'
+                            : Formatters.date(_classStartDate),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14.sp,
+                          color: _classStartDate == null
+                              ? AppColors.textMuted
+                              : AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    Icon(LucideIcons.chevronDown,
+                        size: 18.sp, color: AppColors.textMuted),
+                  ],
+                ),
+              ),
             ),
             SizedBox(height: 16.h),
             AppTextField(

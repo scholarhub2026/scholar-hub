@@ -4,6 +4,7 @@ import '../../data/models/mentor.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/auth/signup_screen.dart';
 import '../../features/booking/booking_screen.dart';
+import '../../features/enquiry/enquiry_screen.dart';
 import '../../features/forms/become_mentor_sheet.dart';
 import '../../features/forms/enquiry_sheet.dart';
 import '../../core/utils/subject_visuals.dart';
@@ -28,6 +29,9 @@ class AppNavigator {
 
   static Future<bool?> toBooking(BuildContext context, Mentor mentor) =>
       _push<bool>(context, BookingScreen(mentor: mentor));
+
+  static Future<bool?> toEnquiry(BuildContext context, Mentor mentor) =>
+      _push<bool>(context, EnquiryScreen(mentor: mentor));
 
   static Future<void> toLogin(BuildContext context) =>
       _push(context, const LoginScreen());

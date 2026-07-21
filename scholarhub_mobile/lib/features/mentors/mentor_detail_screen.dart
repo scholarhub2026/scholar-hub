@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
@@ -9,11 +8,9 @@ import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/mentor.dart';
 import '../../data/services/mentor_service.dart';
-import '../../state/auth/auth_cubit.dart';
 import '../../widgets/network_avatar.dart';
 import '../../widgets/primary_button.dart';
 import '../../widgets/state_views.dart';
-import '../auth/sign_in_prompt.dart';
 import 'widgets/mentor_reviews_section.dart';
 
 class MentorDetailScreen extends StatefulWidget {
@@ -58,33 +55,10 @@ class _MentorDetailScreenState extends State<MentorDetailScreen> {
     }
   }
 
-  /// Booking requires an account. Signed-out users are prompted to sign in /
-  /// sign up first, then continued into the booking flow automatically.
-  Future<void> _startBooking(Mentor mentor) async {
-    if (context.read<AuthCubit>().state.isAuthenticated) {
-      AppNavigator.toBooking(context, mentor);
-      return;
-    }
-
-    final intent = await showSignInPrompt(
-      context,
-      title: 'Sign in to book',
-      message: 'Sign in or create an account to book a session with '
-          '${mentor.firstName} and track it in your dashboard.',
-    );
-    if (intent == null || !mounted) return;
-
-    if (intent == AuthIntent.signIn) {
-      await AppNavigator.toLogin(context);
-    } else {
-      await AppNavigator.toSignup(context);
-    }
-    if (!mounted) return;
-
-    // Continue into booking only if they actually signed in.
-    if (context.read<AuthCubit>().state.isAuthenticated) {
-      AppNavigator.toBooking(context, mentor);
-    }
+  /// Enquiries are open to everyone — no sign-in required. Contact details are
+  /// prefilled from the account if one is signed in.
+  void _startEnquiry(Mentor mentor) {
+    AppNavigator.toEnquiry(context, mentor);
   }
 
   @override
@@ -662,27 +636,11 @@ class _MentorDetailScreenState extends State<MentorDetailScreen> {
             ),
             SizedBox(width: 16.w),
             Expanded(
-              child: mentor.isAvailable
-                  ? PrimaryButton(
-                      label: 'Book Now',
-                      icon: LucideIcons.calendarCheck,
-                      onPressed: () => _startBooking(mentor),
-                    )
-                  : Container(
-                      height: 54.h,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: AppColors.dangerSoft,
-                        borderRadius: BorderRadius.circular(16.r),
-                      ),
-                      child: const Text(
-                        'Slots Currently Full',
-                        style: TextStyle(
-                          color: AppColors.danger,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
+              child: PrimaryButton(
+                label: 'Enquire Now',
+                icon: LucideIcons.send,
+                onPressed: () => _startEnquiry(mentor),
+              ),
             ),
           ],
         ),

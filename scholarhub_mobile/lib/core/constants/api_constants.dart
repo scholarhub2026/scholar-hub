@@ -53,6 +53,11 @@ class ApiConstants {
   static String recordPayment(String bookingId) =>
       '/booking/$bookingId/payments';
 
+  // Class enquiries (the lead front-door that replaces self-service booking).
+  static const String enquiry = '/enquiry';
+  static String enquiryById(String id) => '/enquiry/$id';
+  static const String adminCreateBooking = '/booking/admin';
+
   // ---- Billing v2 (SRD): quote → teacher-accept → sessions → invoices → settlements ----
   static const String bookingQuote = '/booking/quote';
   static const String mentorRequests = '/booking/mentor/requests';
