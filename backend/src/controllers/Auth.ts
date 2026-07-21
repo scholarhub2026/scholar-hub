@@ -177,6 +177,9 @@ export const signInController = catchAsync(
     return res.status(201).json({
       message: 'Login Successfully ',
       token: accessToken,
+      // Also returned in the body for native clients (mobile) that can't use the
+      // httpOnly cookie — they store it themselves and send it to /auth/refresh.
+      refreshToken,
       user: {
         id: user.id,
         firstName: user.firstName,
@@ -271,6 +274,8 @@ export const refreshAccessTokenController = catchAsync(
 
     return res.status(200).json({
       token: accessToken,
+      // Rotated refresh token in the body for native clients (see /login).
+      refreshToken,
       user: {
         id: user.id,
         firstName: user.firstName,

@@ -58,6 +58,8 @@ describe('Auth flow', () => {
         .send({ email: 'login@test.com', password })
       expect(res.status).toBe(201)
       expect(res.body.token).toBeTruthy()
+      // Refresh token is also returned in the body for native (mobile) clients.
+      expect(res.body.refreshToken).toBeTruthy()
       expect(res.body.user.email).toBe(user.email)
       expect(res.body.user.role).toBe('STUDENT')
     })
@@ -110,6 +112,8 @@ describe('Auth flow', () => {
       const res = await request(app).post('/api/auth/refresh').send({ refreshToken })
       expect(res.status).toBe(200)
       expect(res.body.token).toBeTruthy()
+      // Rotated refresh token returned in the body for native clients.
+      expect(res.body.refreshToken).toBeTruthy()
       expect(res.body.user.id).toBe(id)
     })
 
