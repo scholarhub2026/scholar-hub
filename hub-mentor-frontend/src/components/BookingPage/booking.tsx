@@ -1,6 +1,6 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, BookOpen } from "lucide-react";
+import { CheckCircle2, GraduationCap, BookOpen } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -8,34 +8,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useBookingQuoteQuery } from "@/api/booking/quote-api";
 
 const Label = ({ children }: { children: React.ReactNode }) => (
   <h3 className="mb-2 font-display text-base font-bold text-slate-900">{children}</h3>
 );
 
+/**
+ * Enquiry step 1 — pick a class and enquiry type (Demo / Subject-wise). No
+ * slots, no payment: this is a lead, not a booking.
+ */
 const Booking = ({ mentor, setFormData, formData }) => {
-  // Server-side pricing preview — the client never computes money.
-  const quoteQuery = useBookingQuoteQuery({
-    mentorId: mentor?._id,
-    classId: formData.selectedClass?.class_id?._id,
-    bookingType: formData.bookingType,
-    selectedSubjects: formData.selectedSubjects,
-  });
-  const quote = quoteQuery.data;
-  const quoteError = (
-    quoteQuery.error as { response?: { data?: { message?: string } } } | null
-  )?.response?.data?.message;
-
-  // Keep formData.totalAmount in sync for backward compat — this is the
-  // server's estimate, never shown as a payable total.
-  useEffect(() => {
-    setFormData((prev) => ({
-      ...prev,
-      totalAmount: quote?.estimatedAmount ?? 0,
-    }));
-  }, [quote?.estimatedAmount, setFormData]);
-
   if (!mentor) return <p>No mentor data available</p>;
 
   const syllabusList = [
@@ -50,32 +32,36 @@ const Booking = ({ mentor, setFormData, formData }) => {
       )
     : [];
 
-  const toggleSubject = (subject) => {
-    if (formData.bookingType === "individual") {
-      setFormData((prev) => ({ ...prev, selectedSubjects: [subject._id] }));
-    } else {
-      if (formData.selectedSubjects.includes(subject._id)) {
-        setFormData((prev) => ({
-          ...prev,
-          selectedSubjects: prev.selectedSubjects.filter((s) => s !== subject._id),
-        }));
-      } else {
-        setFormData((prev) => ({
-          ...prev,
-          selectedSubjects: [...prev.selectedSubjects, subject._id],
-        }));
-      }
-    }
+  const toggleSubject = (sub) => {
+    const entry = {
+      subjectId: sub.subject_id._id,
+      name: sub.subject_id.name,
+      price: sub.subject_price ?? 0,
+    };
+    setFormData((prev) => {
+      const exists = prev.selectedSubjects.some(
+        (s) => s.subjectId === entry.subjectId,
+      );
+      return {
+        ...prev,
+        selectedSubjects: exists
+          ? prev.selectedSubjects.filter((s) => s.subjectId !== entry.subjectId)
+          : [...prev.selectedSubjects, entry],
+      };
+    });
   };
 
-  const isSubjectRequired =
-    formData.bookingType === "individual" || formData.bookingType === "multiple";
+  const isSubjectWise = formData.enquiryType === "subject-wise";
+  const subjectTotal = formData.selectedSubjects.reduce(
+    (acc, s) => acc + (s.price ?? 0),
+    0,
+  );
 
   return (
     <div className="mx-auto max-w-xl">
       <div className="mb-8 text-center">
         <h2 className="font-display text-2xl font-bold text-slate-900">
-          Book a session
+          Enquire about classes
         </h2>
         <p className="mt-1 text-slate-500">
           with {mentor.firstName} {mentor.lastName}
@@ -93,7 +79,7 @@ const Booking = ({ mentor, setFormData, formData }) => {
                 ...prev,
                 selectedSyllabus: value,
                 selectedClass: null,
-                bookingType: "",
+                enquiryType: "",
                 selectedSubjects: [],
               }))
             }
@@ -127,7 +113,7 @@ const Booking = ({ mentor, setFormData, formData }) => {
                       setFormData((prev) => ({
                         ...prev,
                         selectedClass: cls,
-                        bookingType: "",
+                        enquiryType: "",
                         selectedSubjects: [],
                       }))
                     }
@@ -142,7 +128,7 @@ const Booking = ({ mentor, setFormData, formData }) => {
                       <div className="font-semibold capitalize text-slate-900">
                         {cls.class_id.class}
                       </div>
-                      <div className="text-sm text-slate-500 uppercase">
+                      <div className="text-sm uppercase text-slate-500">
                         {cls.class_id.syllabus}
                       </div>
                     </div>
@@ -154,130 +140,114 @@ const Booking = ({ mentor, setFormData, formData }) => {
           </div>
         )}
 
-        {/* 3. Booking Type */}
+        {/* 3. Enquiry type: Demo / Subject-wise */}
         {formData.selectedClass && (
           <div>
-            <Label>Booking Type</Label>
-            <Select
-              value={formData.bookingType || undefined}
-              onValueChange={(value) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  bookingType: value,
-                  selectedSubjects: [],
-                }))
-              }
-            >
-              <SelectTrigger className="h-11">
-                <SelectValue placeholder="Select type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="full">Full Class</SelectItem>
-                <SelectItem value="individual">Individual Subject</SelectItem>
-                <SelectItem value="multiple">Multiple Subjects</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label>What would you like?</Label>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                {
+                  key: "demo",
+                  icon: GraduationCap,
+                  title: "Demo class",
+                  sub: "A free trial class",
+                },
+                {
+                  key: "subject-wise",
+                  icon: BookOpen,
+                  title: "Subject-wise",
+                  sub: "Pick the subjects you need",
+                },
+              ].map(({ key, icon: Icon, title, sub }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      enquiryType: key,
+                      selectedSubjects: key === "demo" ? [] : prev.selectedSubjects,
+                    }))
+                  }
+                  className={cn(
+                    "flex flex-col items-start gap-1 rounded-xl border p-4 text-left transition",
+                    formData.enquiryType === key
+                      ? "border-primary bg-primary/5 ring-1 ring-primary"
+                      : "border-slate-200 hover:border-slate-300",
+                  )}
+                >
+                  <Icon className="h-5 w-5 text-primary" />
+                  <span className="font-semibold text-slate-800">{title}</span>
+                  <span className="text-xs text-slate-500">{sub}</span>
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
-        {/* 4. Subjects */}
-        {formData.selectedClass &&
-          (formData.bookingType === "individual" ||
-            formData.bookingType === "multiple") && (
-            <div>
-              <Label>Select Subject(s)</Label>
-              <div className="space-y-2">
-                {formData.selectedClass.subject.map((sub) => {
-                  const checked = formData.selectedSubjects.includes(
-                    sub.subject_id._id,
-                  );
-                  return (
-                    <label
-                      key={sub.subject_id._id}
-                      className={cn(
-                        "flex cursor-pointer items-center justify-between rounded-lg border p-3 transition",
-                        checked
-                          ? "border-primary bg-primary/5"
-                          : "border-slate-200 hover:border-slate-300",
-                      )}
-                    >
-                      <div className="flex items-center gap-3">
-                        <input
-                          type={
-                            formData.bookingType === "individual"
-                              ? "radio"
-                              : "checkbox"
-                          }
-                          name="subject"
-                          className="h-4 w-4 accent-primary"
-                          checked={checked}
-                          onChange={() => toggleSubject(sub.subject_id)}
-                        />
-                        <span className="font-medium capitalize text-slate-800">
-                          {sub.subject_id.name}
-                        </span>
-                      </div>
-                    </label>
-                  );
-                })}
-              </div>
-              {isSubjectRequired && formData.selectedSubjects.length === 0 && (
-                <p className="mt-2 text-sm text-red-500">
-                  Please select at least one subject.
-                </p>
-              )}
-            </div>
-          )}
-
-        {/* 5. Fee — server-computed rate card (no payment at booking) */}
-        {formData.bookingType &&
-          (formData.bookingType === "full" ||
-            formData.selectedSubjects.length > 0) && (
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-              <div className="mb-3 flex items-center gap-2 font-medium text-slate-800">
-                <BookOpen className="h-4 w-4" /> Your fee
-              </div>
-
-              {quoteQuery.isLoading && (
-                <p className="text-sm text-slate-400">Calculating fee…</p>
-              )}
-
-              {quoteError && !quoteQuery.isLoading && (
-                <p className="text-sm text-red-500">{quoteError}</p>
-              )}
-
-              {quote && !quoteQuery.isLoading && !quoteError && (
-                <div className="space-y-2">
-                  {quote.rateCard.perClassFee != null ? (
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-slate-600">Per class</span>
-                      <span className="font-display text-lg font-bold text-slate-900">
-                        ₹{quote.rateCard.perClassFee}
+        {/* 4. Subjects (subject-wise only) */}
+        {isSubjectWise && formData.selectedClass && (
+          <div>
+            <Label>Select Subject(s)</Label>
+            <div className="space-y-2">
+              {formData.selectedClass.subject.map((sub) => {
+                const checked = formData.selectedSubjects.some(
+                  (s) => s.subjectId === sub.subject_id._id,
+                );
+                return (
+                  <label
+                    key={sub.subject_id._id}
+                    className={cn(
+                      "flex cursor-pointer items-center justify-between rounded-lg border p-3 transition",
+                      checked
+                        ? "border-primary bg-primary/5"
+                        : "border-slate-200 hover:border-slate-300",
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 accent-primary"
+                        checked={checked}
+                        onChange={() => toggleSubject(sub)}
+                      />
+                      <span className="font-medium capitalize text-slate-800">
+                        {sub.subject_id.name}
                       </span>
                     </div>
-                  ) : (
-                    quote.rateCard.subjectRates.map((r) => (
-                      <div
-                        key={r.subjectId ?? r.name}
-                        className="flex items-center justify-between"
-                      >
-                        <span className="text-sm capitalize text-slate-600">
-                          {r.name || "Subject"}
-                        </span>
-                        <span className="font-semibold text-slate-900">
-                          ₹{r.hourlyRate}/hr
-                        </span>
-                      </div>
-                    ))
-                  )}
-                  <p className="pt-1 text-xs text-slate-400">
-                    {quote.billingNote}
-                  </p>
-                </div>
-              )}
+                    <span className="text-sm font-semibold text-slate-700">
+                      ₹{sub.subject_price}
+                    </span>
+                  </label>
+                );
+              })}
             </div>
-          )}
+            {formData.selectedSubjects.length === 0 && (
+              <p className="mt-2 text-sm text-red-500">
+                Please select at least one subject.
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* 5. Indicative amount */}
+        {formData.enquiryType && (
+          <div className="flex items-center justify-between rounded-xl bg-slate-50 px-5 py-4">
+            <span className="font-medium text-slate-700">Indicative fee</span>
+            <span className="font-display text-xl font-bold text-slate-900">
+              {formData.enquiryType === "demo"
+                ? "Free"
+                : subjectTotal > 0
+                  ? `₹${subjectTotal}`
+                  : "—"}
+            </span>
+          </div>
+        )}
       </div>
+
+      <p className="mt-4 text-center text-xs text-slate-400">
+        No payment now — we'll contact you to arrange classes.
+      </p>
     </div>
   );
 };

@@ -27,19 +27,26 @@ const EditBookings = () => {
 
   
 
+  // Booking.classStartDate is stored UTC-midnight; slice to YYYY-MM-DD for the input.
+  const startDateValue = booking?.classStartDate
+    ? new Date(booking.classStartDate).toISOString().slice(0, 10)
+    : "";
+
  const { register, handleSubmit, setValue, formState: { errors } } = useForm<{
   paymentStatus: string;
   bookingStatus: string;
   paymentFrequency: string;
   remarks: string;
   totalAmount:string;
+  classStartDate: string;
 }>({
   defaultValues: {
     paymentStatus: booking?.paymentStatus || "pending",
     bookingStatus: booking?.bookingStatus || "pending",
     paymentFrequency: booking?.paymentFrequency || "monthly",
     remarks: booking?.remarks || "",
-    totalAmount:booking?.totalAmount
+    totalAmount:booking?.totalAmount,
+    classStartDate: startDateValue,
   },
 });
 
@@ -151,6 +158,12 @@ const EditBookings = () => {
           {errors.totalAmount && (
             <p className="text-red-500 text-sm">{errors.totalAmount.message}</p>
           )}
+        </div>
+
+        {/* Class start date — drives the manual payment schedule */}
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="classStartDate">Class start date</Label>
+          <Input id="classStartDate" type="date" {...register("classStartDate")} />
         </div>
 
         {/* Remarks */}

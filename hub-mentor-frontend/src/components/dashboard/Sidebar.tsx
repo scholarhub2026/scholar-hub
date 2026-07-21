@@ -38,7 +38,8 @@ type NavItem = { name: string; href: string; icon: LucideIcon };
 export const NAVIGATION: Record<RoleSlug, NavItem[]> = {
   admin: [
     { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
-    { name: "Enquiries", href: "/admin/inquery", icon: Users },
+    { name: "Enquiries", href: "/admin/enquiries", icon: Inbox },
+    { name: "Contact leads", href: "/admin/inquery", icon: Users },
     { name: "Mentors", href: "/admin/mentors", icon: Briefcase },
     { name: "Classes", href: "/admin/classes", icon: CalendarDays },
     { name: "Subjects", href: "/admin/subjects", icon: BookOpen },

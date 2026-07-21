@@ -40,6 +40,7 @@ const BookingTable = lazy(() => import("./components/BookingPage/BookingTable"))
 const AdminAdsPage = lazy(() => import("./features/admin/ads/AdminAdsPage"));
 const AdminPaymentsPage = lazy(() => import("./features/admin/payments/AdminPaymentsPage"));
 const AdminSessionsPage = lazy(() => import("./features/admin/sessions/AdminSessionsPage"));
+const AdminEnquiriesPage = lazy(() => import("./features/admin/enquiries/AdminEnquiriesPage"));
 const AdminSettlementsPage = lazy(() => import("./features/admin/settlements/AdminSettlementsPage"));
 const AdminUsersPage = lazy(() => import("./features/admin/users/AdminUsersPage"));
 const AdminReviewsPage = lazy(() => import("./features/admin/reviews/AdminReviewsPage"));
@@ -93,6 +94,7 @@ const renderRoutes = () => (
       >
         <Route path="/admin" element={<Dashboard />} />
         <Route path="/admin/inquery" element={<InqueryPage />} />
+        <Route path="/admin/enquiries" element={<AdminEnquiriesPage />} />
         <Route path="/admin/mentors" element={<MentorDetails />} />
         <Route path="/admin/classes" element={<ClassPage />} />
         <Route path="/admin/subjects" element={<SubjectPage />} />

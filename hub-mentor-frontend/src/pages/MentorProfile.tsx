@@ -305,20 +305,21 @@ const MentorProfile = () => {
             </Tabs>
           </div>
 
-          {/* Booking Column */}
+          {/* Enquiry Column */}
           <div className="md:w-1/3 mt-8 md:mt-0">
             <Card className="sticky top-24">
               <CardHeader>
-                <CardTitle>Book a Session</CardTitle>
-               
+                <CardTitle>Enquire about classes</CardTitle>
               </CardHeader>
               <CardContent>
-               <Link to={`${isAvailable?`${base}/booking/${mentor._id}`:""}`} className="w-full">
-                      <button  disabled={!isAvailable} className="w-full bg-blue-600 disabled:bg-blue-400 p-3 text-white rounded-lg">Book Now</button>
-                    </Link>
-                    <Label hidden={isAvailable} className="text-red-600">Time Slot Full</Label>
-
-                
+                <Link to={`${base}/booking/${mentor._id}`} className="w-full">
+                  <button className="w-full rounded-lg bg-blue-600 p-3 text-white hover:bg-blue-700">
+                    Enquire Now
+                  </button>
+                </Link>
+                <p className="mt-3 text-center text-xs text-slate-400">
+                  No payment now — we'll contact you to arrange classes.
+                </p>
               </CardContent>
             </Card>
           </div>
