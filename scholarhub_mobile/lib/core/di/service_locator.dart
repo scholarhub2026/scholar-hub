@@ -14,6 +14,8 @@ final GetIt sl = GetIt.instance;
 /// Registers app-wide singletons. Call once at boot (after
 /// `LocalStorageService.load()`), before `runApp`.
 Future<void> setupServiceLocator() async {
+  // Idempotent — a hot restart re-runs main() but keeps the get_it singleton.
+  if (sl.isRegistered<LocalStorageService>()) return;
   sl
     // Infra
     ..registerSingleton<LocalStorageService>(LocalStorageService.instance)

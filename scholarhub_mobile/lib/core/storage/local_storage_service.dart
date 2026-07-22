@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -31,17 +32,24 @@ class LocalStorageService {
   /// Migrates a legacy plaintext `sh_token` from SharedPreferences into secure
   /// storage on first run after upgrade.
   Future<void> load() async {
-    _accessToken = await _secure.read(key: _kAccess);
-    _refreshToken = await _secure.read(key: _kRefresh);
+    // Never let a secure-storage hiccup block startup — degrade to signed-out.
+    try {
+      _accessToken = await _secure.read(key: _kAccess);
+      _refreshToken = await _secure.read(key: _kRefresh);
 
-    if ((_accessToken ?? '').isEmpty) {
-      final prefs = await SharedPreferences.getInstance();
-      final legacy = prefs.getString(_kLegacyToken);
-      if (legacy != null && legacy.isNotEmpty) {
-        _accessToken = legacy;
-        await _secure.write(key: _kAccess, value: legacy);
-        await prefs.remove(_kLegacyToken);
+      if ((_accessToken ?? '').isEmpty) {
+        final prefs = await SharedPreferences.getInstance();
+        final legacy = prefs.getString(_kLegacyToken);
+        if (legacy != null && legacy.isNotEmpty) {
+          _accessToken = legacy;
+          await _secure.write(key: _kAccess, value: legacy);
+          await prefs.remove(_kLegacyToken);
+        }
       }
+    } catch (e) {
+      _accessToken = null;
+      _refreshToken = null;
+      debugPrint('[storage] load failed (continuing signed-out): $e');
     }
   }
 

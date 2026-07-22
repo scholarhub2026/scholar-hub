@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -20,25 +22,39 @@ Future<void> main() async {
   );
 
   // Load persisted tokens (secure storage) + wire dependencies before anything
-  // makes a request.
-  await LocalStorageService.instance.load();
-  await setupServiceLocator();
-
-  // Push notifications are optional at boot: if Firebase native config is
-  // missing the app still launches, just without notifications.
+  // makes a request. Guarded + time-boxed so a storage/DI hiccup degrades to a
+  // signed-out start instead of a white screen.
   try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    await PushService.instance.init();
-  } catch (e) {
-    debugPrint('[push] Firebase not configured yet: $e');
+    await LocalStorageService.instance.load().timeout(
+          const Duration(seconds: 6),
+          onTimeout: () => debugPrint('[boot] storage load timed out'),
+        );
+    await setupServiceLocator();
+  } catch (e, s) {
+    debugPrint('[boot] init failed: $e\n$s');
   }
 
+  // Render immediately — do NOT block the first frame on Firebase. On some
+  // devices/simulators Firebase.initializeApp() can hang; push is optional, so
+  // it's initialized in the background after the app is on screen.
   runApp(
     BlocProvider(
       create: (_) => AuthCubit()..bootstrap(),
       child: const ScholarHubApp(),
     ),
   );
+
+  unawaited(_initPushInBackground());
+}
+
+/// Best-effort Firebase + push init, off the startup path. Never throws.
+Future<void> _initPushInBackground() async {
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    ).timeout(const Duration(seconds: 10));
+    await PushService.instance.init().timeout(const Duration(seconds: 10));
+  } catch (e) {
+    debugPrint('[push] Firebase init skipped: $e');
+  }
 }
