@@ -31,7 +31,9 @@ class FeaturesSection extends StatelessWidget {
               crossAxisCount: 2,
               mainAxisSpacing: 14,
               crossAxisSpacing: 14,
-              childAspectRatio: 0.72,
+              // Slightly taller cards so the description has room (iOS fonts
+              // render taller than Android).
+              childAspectRatio: 0.66,
             ),
             itemBuilder: (context, index) {
               final f = AppContent.features[index];
@@ -69,7 +71,9 @@ class _FeatureCard extends StatelessWidget {
             ),
             child: Icon(feature.icon, color: Colors.white, size: 24.sp),
           ),
-          const Spacer(),
+          // Fixed gap (not a Spacer) so the description keeps all remaining
+          // vertical space instead of splitting it with the flexible spacer.
+          SizedBox(height: 16.h),
           Text(
             feature.title,
             maxLines: 1,
@@ -84,11 +88,11 @@ class _FeatureCard extends StatelessWidget {
           Flexible(
             child: Text(
               feature.description,
-              maxLines: 4,
+              maxLines: 3,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 12.5.sp,
-                height: 1.4,
+                height: 1.35,
                 color: AppColors.textSecondary,
               ),
             ),

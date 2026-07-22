@@ -90,7 +90,9 @@ class _DashboardView extends StatelessWidget {
                 physics: const NeverScrollableScrollPhysics(),
                 mainAxisSpacing: 12,
                 crossAxisSpacing: 12,
-                childAspectRatio: 1.5,
+                // Taller cells so the icon + value + label column never
+                // overflows (iOS renders the font taller than Android).
+                childAspectRatio: 1.3,
                 children: [
                   _StatCard(
                     icon: LucideIcons.inbox,
